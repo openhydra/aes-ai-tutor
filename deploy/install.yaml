@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aes-ai-tutor
+  namespace: ai-education-studio
+  labels:
+    app: aes-ai-tutor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aes-ai-tutor
+  template:
+    metadata:
+      labels:
+        app: aes-ai-tutor
+    spec:
+      serviceAccountName: ai-education-studio-admin
+      containers:
+      - name: aes-ai-tutor-container
+        image:  hub.sh.99cloud.net/aes/aes-ai-tutor:master
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh", "-c"]
+        args: ["python cli.py init && python cli.py start --api"]
+        ports:
+        - containerPort: 7861
+          name: aitutor-api
+        volumeMounts:
+        - mountPath: /root/aitutor_data
+          name: aitutor-data
+      volumes:
+      - hostPath:
+          path: /mnt/aitutor_data
+          type: DirectoryOrCreate
+        name: aitutor-data  
+---
+
+# service
+apiVersion: v1
+kind: Service
+metadata:
+  name: aes-ai-tutor
+  namespace: ai-education-studio
+spec:
+  selector:
+    app: aes-ai-tutor
+  ports:
+    - protocol: TCP
+      port: 7861
+      targetPort: 7861
+      nodePort: 30004
+  type: NodePort

@@ -1,0 +1,12 @@
+apiVersion: mysql.oracle.com/v2
+kind: InnoDBCluster
+metadata:
+  name: aes-ai-tutor
+  namespace: mysql-operator
+spec:
+  imagePullPolicy: IfNotPresent
+  secretName: mypwds
+  tlsUseSelfSigned: true
+  instances: 1
+  router:
+    instances: 1

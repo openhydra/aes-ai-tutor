@@ -1,0 +1,2495 @@
+用AI解决真实问题的技术地图
+    数据、算法和算力被公认为推动人工智能发展的三驾马车。随着深度学习技术的发展，人工智能的门槛逐步下降。浦育平台、XEdu为代表系列人工智能开发工具发布以来，越来越多的老师开始认同，借助大量数据和开源算法，训练具备一定智能的模型，从而解决一些简单的真实问题，应该成为中小学人工智能课程的核心内容。
+一、用AI解决真实问题的流程分析
+    人工智能的开发框架很多，相关的工具也很多。因为老师们在缺少对工具全面了解的情况下，很难设计出一份合理的技术地图，容易走弯路。为了能更加清晰地表述，本文以劳动和科学教育中常常遇到的昆虫识别问题为例，结合一个害虫识别应用的开发过程来介绍各种技术工具的选择。
+    首先，要训练一个昆虫的分类或者识别模型。人工智能的核心是模型，用人工智能解决真实问题实际上可以等同为用模型来解决问题。要识别害虫，可以借助提供网络API服务的AI开放平台，也可以使用一个已经训练好的昆虫模型。但如果AI模型不是自己训练，显然有“攘人之美”之嫌。当然，我们常常遇到的真实情况是AI开放平台要收费或者没有相关功能，找到的预训练模型的识别效果不好或者根本找不到。而农场中出现的昆虫种类并不多，完全可以自行收集数据训练模型。
+    其次，训练好的模型需要部署为智能应用。应用模型也有多种选择，一种是将模型部署在服务器或者可以长时间开机的电脑上，提供WebAPI服务，使用带摄像头和Wi-Fi的开源硬件，将害虫的照片发回到Web服务器，然后得到推理结果。一般来说，只有较大的模型才需要这么做。另一种是直接将模型运行在开源硬件上，拍摄、识别和执行等功能全部整合在一起。能运行Python的开源硬件，绝大多数都支持ONNX的模型推理，如行空板、树莓派和爱克斯板等。只要模型不要太大，都能直接部署推理。
+    具体的流程分析如图所示。而识别昆虫的模型，使用图像分类技术即可，选择常见的MobileNet模型约10M，ResNet18模型也才50M。以爱克斯板为例，即使不做OpenVINO加速，推理速度也很快。
+二、训练AI模型的技术地图
+    对自行训练模型来说，收集数据是一件最核心的工作。因为算法是开源的，算力是购买的，对学生来说核心工作也只有数据收集、清洗等。一般来说，如果不追求精度，每个类别的昆虫有数十张就够了，采用迁移学习的方式，训练速度很快，甚至可以直接在网页端训练。浦育平台的“AI体验”页面就提供了网页端训练模型的功能，即图像分类模块，采用的算法就是MobileNet V2。这个训练模型的过程不需要写代码。
+    如果数据比较多，那么建议选择MMEdu来训练模型。用MMEdu训练模型，核心代码就六行。只要按照ImageNet的数据集格式，将昆虫图片放在不同的分类目录中即可。具体可以参考XEdu的帮助文档《从零开始制作一个ImageNet格式数据集》，或者打开浦育平台的“猫狗”“手写体数字”之类的数据集，看一眼就明白。即使用MMEdu来训练，也有几种方式可以选择，如图所示。
+用浦育平台提供的服务器（容器）训练模型。浦育平台还提供了GPU服务器，训练速度比普通电脑要快一些。只是GPU服务器数量少，如果在线人多就需要耐心等一两分钟。唯一不方便的是，需要将数据集打包上传到浦育平台。
+搭建本地XEdu环境训练模型。即使在浦育平台上，训练模型一般也选择XEdu服务器，如果自己的电脑配置不会太古老，能安装Win7的64位，或者Win10、Win11等操作系统的，那就下载XEdu一键安装包，解压后训练环境就配置好了。XEdu提供了各种参考代码，改一下目录就能使用。
+    实际上，XEdu也提供了无代码训练模型的工具。运行EasyTrain系列工具。系统会打开一个网页，按照网页上的提供，将数据集放在相应的位置，一步一步操作，最后生成代码，并直接开始模型训练，如图所示。
+此外，微软提供了一个名叫Lobe（https://www.lobe.ai/）的工具，不需要编写代码即可训练出AI模型。相信这点工具会越来越多。
+三、应用AI模型的技术地图
+    模型训练结束后，接下来就是模型应用推理了。不同的AI模型有不同的推理框架，我们推荐使用ONNX格式。这是一种非常通用的模型交换格式，推理环境的安装很容易，推理速度又快。MMEdu提供ONNX模型转换的功能，参考代码如“model.convert(checkpoint=in_file, out_file=out_file)”。如果使用EasyTrain工具，训练结束后都会提示要不要转换为ONNX。
+    用浦育平台的“AI体验”网页中图像分类模块训练的模型，也能转换为ONNX格式的模型。在浦育平台的“项目”栏目输入关键字“tensorflow”，即可找到类似“模型转换：从TensorFlowJS到ONNX”的项目，任选一个，按照提示，即可完成模型转换。
+    对于ONNX模型的推理，实际上就属于传统编程的学习内容了。使用模型推理和使用一个Python的库没有任何区别。Mind+中有个名叫BaseDeploy的插件，安装后就能用图形化的方式写推理代码了。MMEdu在转换模型的同时，会产生Python参考代码，简洁易懂，其使用的是XEduhub库。对于浦育平台训练出来的ONNX模型，使用“mmcls = wf(task='mmedu',checkpoint='insect.onnx')”即可推理。下面的代码是将图片“insect01.jpg”进行了推理，并输出了结果。
+python
+from XEdu.hub import Workflow as wf # 导入库
+mmcls = wf(task='mmedu',checkpoint='insect.onnx') # 指定使用的onnx模型
+result, result_img =  mmcls.inference(data='./insect01.jpg',img_type='pil') # 进行模型推理
+format_result = mmcls.format_output(lang="zh") # 推理结果格式化输出
+print(format_result) # 输出结果
+四、小结
+    如上所述，我们成功地完成了一个昆虫识别的AI应用。限于篇幅，本文没有展开介绍如何从摄像头中获取图片，如何根据推理结果做出不同的执行动作等。在这个过程中，学生们有多种可选的方法和工具，具体要视具体情况作出合适的选择。
+而本文在介绍各种技术的过程中，也展示了人工智能教育区别于传统编程教育的最重要标志，那就是要训练AI模型。而在浦育平台和XEdu的帮助下，训练模型真的没有什么难度。“右手写代码，左手训模型”，这应该是中小学人工智能教育的常态。
+五、附录
+人工智能科创活动中的常见工具盘点。
+数据采集和处理工具
+BaseDT（数据转换工具）
+Labelbee、Labelme（数据标注工具）
+模型训练工具
+深度学习框架
+MMEdu
+BaseeNN
+BaseML
+Keras
+AI开发平台或者工具
+浦育平台
+Lobe
+EasyTrain
+ModelArts
+paddlehub
+模型部署工具
+XEduhub
+BaseDeploy
+可部署模型的硬件
+行空板
+树莓派
+拿铁熊猫
+爱克斯板
+
+用AI解决问题的一般步骤
+人工智能教育区别于传统编程教育的最重要标志，那就是要训练AI模型。用AI解决问题，核心工作是训练一个具备某种智能的AI模型。
+Step1: 发现问题
+发现生活中的问题，并转换为AI可解决的问题
+Step2: 寻找可行解决方案
+分析是需要找一个现成的模型，还是要训练一个个性化模型。
+Step3: 采集数据
+分析问题，采集针对本问题的各种数据，并对数据进行探索和特征提取。使得数据方便输入模型。
+Step4: 模型训练
+将按照格式要求整理好的数据输入选择的模型，进行训练。如果效果不够好，调整超参数后，继续训练。或者寻找预训练模型，在此基础上调优。
+- 方式一：MMEdu
+- 方式二：BaseNN
+- 方式三：BaseML
+Step5: 模型验证
+验证模型的效果。
+- 方式一：MMEdu
+- 方式二：BaseNN
+- 方式三：BaseML
+Step6: 模型应用
+使用规范的方式应用模型，可以添加相关的多模态操作，使项目更丰富，得以真正解决现实问题。
+- 方式一：XEduHub
+- 方式二：BaseDeploy
+
+经典数据集介绍
+常见的数据集
+ImageNet
+ImageNet 是目前世界上图像识别最大的数据库，有超过1500万张图片，约2.2万种类别，权威、可靠。 
+斯坦福大学教授李飞飞为了解决机器学习中过拟合和泛化的问题而牵头构建的数据集。该数据集从2007年开始手机建立，直到2009年作为论文的形式在CVPR 2009上面发布。直到目前，该数据集仍然是深度学习领域中图像分类、检测、定位的最常用数据集之一。
+基于ImageNet有一个比赛，从2010年开始举行，到2017年最后一届结束。该比赛称为ILSVRC，全称是ImageNet Large-Scale Visual Recognition Challenge，每年举办一次，每次从ImageNet数据集中抽取部分样本作为比赛的数据集。ILSVRC比赛包括：图像分类、目标定位、目标检测、视频目标检测、场景分类。在该比赛的历年优胜者中，诞生了AlexNet（2012）、VGG（2014）、GoogLeNet（2014）、ResNet（2015）等耳熟能详的深度学习网络模型。“ILSVRC”一词有时候也用来特指该比赛使用的数据集，即ImageNet的一个子集，其中最常用的是2012年的数据集，记为ILSVRC2012。因此有时候提到ImageNet，很可能是指ImageNet中用于ILSVRC2012的这个子集。ILSVRC2012数据集拥有1000个分类（这意味着面向ImageNet图片识别的神经网络的输出是1000个），每个分类约有1000张图片。这些用于训练的图片总数约为120万张，此外还有一些图片作为验证集和测试集。ILSVRC2012含有5万张图片作为验证集，10万张图片作为测试集（测试集没有标签，验证集的标签通过另外的文档给出）。
+ImageNet不仅是一个数据集、一项比赛，也是一种典型的数据集格式。分类任务中最经典的数据集类型就是ImageNet格式。
+XEdu中MMEdu的图像分类模块数据集类型是ImageNet，包含三个文件夹和三个文本文件，文件夹内，不同类别图片按照文件夹分门别类排好，通过training_set、val_set、test_set区分训练集、验证集和测试集。文本文件classes.txt说明类别名称与序号的对应关系，val.txt说明验证集图片路径与类别序号的对应关系，test.txt说明测试集图片路径与类别序号的对应关系。如需训练自己创建的数据集，数据集需转换成ImageNet格式。如何制作ImageNet格式数据集详见后文。
+COCO
+MS COCO的全称是Microsoft Common Objects in Context，起源于微软于2014年出资标注的Microsoft COCO数据集，与ImageNet竞赛一样，被视为是计算机视觉领域最受关注和最权威的比赛之一。 
+COCO数据集是一个大型的、丰富的物体检测，分割和字幕数据集。这个数据集以scene understanding为目标，主要从复杂的日常场景中截取，图像中的目标通过精确的segmentation进行位置的标定。图像包括91类目标，328,000影像和2,500,000个label。目前为止有语义分割的最大数据集，提供的类别有80 类，有超过33 万张图片，其中20 万张有标注，整个数据集中个体的数目超过150 万个。
+XEdu中MMEdu的MMDetection模块支持的数据集类型是COCO，如需训练自己创建的数据集，数据集需转换成COCO格式。如何制作COCO格式数据集详见后文。
+
+从零开始制作一个COCO格式数据集
+COCO格式数据集简介
+COCO数据集是一个大型的、丰富的物体检测，分割和字幕数据集。这个数据集以scene understanding（场景理解）为目标，主要从复杂的日常场景中截取，图像中的目标通过精确的segmentation（分割）进行位置的标定。图像包括91类目标，328,000影像和2,500,000个label。是目前为止有语义分割的最大数据集，提供的类别有80类，有超过33万张图片，其中20万张有标注，整个数据集中个体的数目超过150万个。
+XEdu中MMEdu的目标检测模块支持的数据集类型是COCO，很多时候我们需要训练自己创建的数据集，那怎么样才能将数据集需转换成COCO格式呢？
+接下来就让我们一起学习几种自己制作COCO格式数据集的方式吧。
+方式1：OpenInnoLab版（线上标注）
+这里强烈推荐初学者点击《从零开始制作一个COCO数据集之格式转换》，跟随项目中的图文指引，轻松体验COCO格式数据集创建过程。
+第一步：整理图片
+新建一个images文件夹用于存放自己收集到的所有图片，图片可以从网络上下载，也可以自行拍摄，但是要注意的是，图片需要是jpg或png格式，否则可能会导致无法正常显示。
+第二步：标注图片
+使用熟悉的标注方式标注图片，如可点击链接进入浦育在线工具页面，再点击“人工智能工坊”，在“数据标注”板块创建数据标注项目实践。
+第三步：转换成COCO格式
+使用BaseDT库将平台标注格式的数据集转换成COCO格式，可以使用如下代码：
+plain
+from BaseDT.dataset import DataSet
+ds = DataSet(r"my_dataset") # 指定目标数据集
+ds.make_dataset(r"/data/HZQV42", src_format="INNOLAB",train_ratio = 0.8, test_ratio = 0.1, val_ratio = 0.1) # 仅需修改第一个参数为待转格式的原始数据集路径（注意是整个数据集）
+第四步：检查数据集格式
+结合数据集检查提示对数据集进行调整，必要时可重做前几步，最后完成整个数据集制作。在训练的时候，只要通过model.load_dataset指定数据集的路径就可以了。
+选择2：LabelMe版（本地标注）
+第一步：整理图片
+根据需求按照自己喜欢的方式收集图片，图片中包含需要检测的信息即可，可以使用ImageNet格式数据集整理图片的方式对收集的图片进行预处理。
+整理图片（目标检测）
+|---images
+    |----test
+        |----xxx.jpg/png/....
+    |----train
+        |----xxx.jpg/png/....
+    |----valid
+        |----xxx.jpg/png/....
+数据划分的方法并没有明确的规定，不过可以参考两个原则：
+对于小规模样本集（几万量级），常用的分配比例是 60% 训练集、20% 验证集、20% 测试集。
+对于大规模样本集（百万级以上），只要验证集和测试集的数量足够即可，例如有 100w 条数据，那么留 1w 验证集，1w 测试集即可。1000w 的数据，同样留 1w 验证集和 1w 测试集。
+第二步：标注图片
+使用熟悉的标注方式标注图片，如可使用LabelMe批量打开图片文件夹的图片，进行标注并保存为json文件。
+LabelMe：麻省理工（MIT）的计算机科学和人工智能实验室（CSAIL）研发的图像标注工具，标注格式为LabelMe，网上较多LabelMe转VOC、COCO格式的脚本，可以标注矩形、圆形、线段、点。标注语义分割、实例分割数据集尤其推荐。
+安装与打开方式：pip install labelme安装完成后输入labelme即可打开。
+第三步：转换成COCO标注格式
+将LabelMe格式的标注文件转换成COCO标注格式，可以使用如下代码：
+```python
+import json
+import numpy as np
+import glob
+import PIL.Image
+from PIL import ImageDraw
+from shapely.geometry import Polygon
+class labelme2coco(object):
+    def init(self, labelme_json=[], save_json_path='./new.json'):
+        '''
+        :param labelme_json: 所有labelme的json文件路径组成的列表
+        :param save_json_path: json保存位置
+        '''
+        self.labelme_json = labelme_json
+        self.save_json_path = save_json_path
+        self.annotations = []
+        self.images = []
+        self.categories = [{'supercategory': None, 'id': 1, 'name': 'cat'},{'supercategory': None, 'id': 2, 'name': 'dog'}] # 指定标注的类别
+        self.label = []
+        self.annID = 1
+        self.height = 0
+        self.width = 0
+        self.save_json()
+# 定义读取图像标注信息的方法
+def image(self, data, num):
+    image = {}
+    height = data['imageHeight']
+    width = data['imageWidth']
+    image['height'] = height
+    image['width'] = width
+    image['id'] = num + 1
+    image['file_name'] = data['imagePath'].split('/')[-1]
+    self.height = height
+    self.width = width
+    return image
+# 定义数据转换方法
+def data_transfer(self):
+    for num, json_file in enumerate(self.labelme_json):
+        with open(json_file, 'r') as fp:
+            data = json.load(fp)  # 加载json文件
+            self.images.append(self.image(data, num)) # 读取所有图像标注信息并加入images数组
+            for shapes in data['shapes']:
+                label = shapes['label']
+                points = shapes['points']
+                shape_type = shapes['shape_type']
+                if shape_type == 'rectangle':
+                    points = [points[0],[points[0][0],points[1][1]],points[1],[points[1][0],points[0][1]]]     
+                self.annotations.append(self.annotation(points, label, num)) # 读取所有检测框标注信息并加入annotations数组
+                self.annID += 1
+    print(self.annotations)
+# 定义读取检测框标注信息的方法
+def annotation(self, points, label, num):
+    annotation = {}
+    annotation['segmentation'] = [list(np.asarray(points).flatten())]
+    poly = Polygon(points)
+    area_ = round(poly.area, 6)
+    annotation['area'] = area_
+    annotation['iscrowd'] = 0
+    annotation['image_id'] = num + 1
+    annotation['bbox'] = list(map(float, self.getbbox(points)))
+    annotation['category_id'] = self.getcatid(label)
+    annotation['id'] = self.annID
+    return annotation
+# 定义读取检测框的类别信息的方法
+def getcatid(self, label):
+    for categorie in self.categories:
+        if label == categorie['name']:
+            return categorie['id']
+    return -1
+def getbbox(self, points):
+    polygons = points
+    mask = self.polygons_to_mask([self.height, self.width], polygons)
+    return self.mask2box(mask)
+def mask2box(self, mask):
+    '''从mask反算出其边框
+    mask：[h,w]  0、1组成的图片
+    1对应对象，只需计算1对应的行列号（左上角行列号，右下角行列号，就可以算出其边框）
+    '''
+    # np.where(mask==1)
+    index = np.argwhere(mask == 1)
+    rows = index[:, 0]
+    clos = index[:, 1]
+    # 解析左上角行列号
+    left_top_r = np.min(rows)  # y
+    left_top_c = np.min(clos)  # x
+    # 解析右下角行列号
+    right_bottom_r = np.max(rows)
+    right_bottom_c = np.max(clos)
+    return [left_top_c, left_top_r, right_bottom_c - left_top_c,
+            right_bottom_r - left_top_r]  # [x1,y1,w,h] 对应COCO的bbox格式
+def polygons_to_mask(self, img_shape, polygons):
+    mask = np.zeros(img_shape, dtype=np.uint8)
+    mask = PIL.Image.fromarray(mask)
+    xy = list(map(tuple, polygons))
+    PIL.ImageDraw.Draw(mask).polygon(xy=xy, outline=1, fill=1)
+    mask = np.array(mask, dtype=bool)
+    return mask
+def data2coco(self):
+    data_coco = {}
+    data_coco['images'] = self.images
+    data_coco['categories'] = self.categories
+    data_coco['annotations'] = self.annotations
+    return data_coco
+def save_json(self):
+    self.data_transfer()
+    self.data_coco = self.data2coco()
+    # 保存json文件
+    json.dump(self.data_coco, open(self.save_json_path, 'w'), indent=4)  # 写入指定路径的json文件，indent=4 更加美观显示
+labelme_json = glob.glob('picture/*.json')  # 获取指定目录下的json格式的文件
+labelme2coco(labelme_json, 'picture/new.json') # 指定生成文件路径
+```
+第四步：按照目录结构整理文件
+创建两个文件夹“images”和“annotations”，分别用于存放图片以及标注信息。按照要求的目录结构，整理好文件夹的文件，最后将文件夹重新命名，制作完成后如想要检查数据集，可使用BaseDT的数据集格式检查功能，结合数据集检查提示对数据集进行调整，最后完成整个数据集制作。在训练的时候，只要通过model.load_dataset指定数据集的路径就可以了。
+COCO格式数据集（目标检测）
+|---annotations
+        |----test.json
+        |----train.json
+        |----valid.json
+|---images
+        |----test
+        |----train
+        |----valid
+classes.txt
+选择3：改装网上下载的目标检测数据集
+网上也可以找到一些目标检测数据集，但是网上下载的数据集的格式可能不符合XEdu的需求。那么就需要进行数据集格式转换。
+我们可以下载网上的数据集，改装生成我们需要的数据集格式。此时可以选择使用BaseDT的常见数据集格式转换功能。
+第一步：整理原始数据集
+首先新建一个annotations文件夹用于存放所有标注文件（VOC格式的为xml文件、COCO格式的为json格式），然后新建一个images文件夹用于存放所有图片，同时在根目录下新建一个classes.txt，写入类别名称。整理规范如下：
+原数据集（目标检测）
+|---annotations
+      |----xxx.json/xxx.xml
+|---images
+      |----xxx.jpg/png/....
+classes.txt
+第二步：转换为COCO格式
+使用BaseDT库将平台标注格式的数据集转换成COCO格式，可以使用如下代码。如需了解更多BaseDT库数据集处理的功能，详见BaseDT的数据集格式转换。
+python
+from BaseDT.dataset import DataSet
+ds = DataSet(r"my_dataset") # 指定为新数据集路径
+ds.make_dataset(r"G:\\测试数据集\\fruit_voc", src_format="VOC",train_ratio = 0.8, test_ratio = 0.1, val_ratio = 0.1) # 指定待转格式的原始数据集路径，原始数据集格式，划分比例，默认比例为train_ratio = 0.7, test_ratio = 0.1, val_ratio = 0.2
+第三步：检查数据集
+结合数据集检查提示对数据集进行调整，必要时可重做前几步，最后完成整个数据集制作。在训练的时候，只要通过model.load_dataset指定数据集的路径就可以了。
+
+从零开始制作一个ImageNet格式数据集
+ImageNet格式数据集简介
+ImageNet不仅是一个数据集、一项比赛，也是一种典型的数据集格式。分类任务中最经典的数据集类型就是ImageNet格式。
+XEdu中MMEdu的图像分类模块数据集类型是ImageNet，包含三个文件夹和三个文本文件，文件夹内，不同类别图片按照文件夹分门别类排好，通过training_set、val_set、test_set区分训练集、验证集和测试集。文本文件classes.txt说明类别名称与序号的对应关系，val.txt说明验证集图片路径与类别序号的对应关系，test.txt说明测试集图片路径与类别序号的对应关系。如需训练自己创建的数据集，数据集需转换成ImageNet格式。这里，为您提供几种自己制作ImageNet格式数据集的方法。
+选择1：巧用BaseDT的make_dataset函数制作
+第一步：整理图片
+首先新建一个images文件夹用于存放图片，然后开始采集图片，您可以用任何设备拍摄图像，也可以从视频中抽取帧图像，需要注意，这些图像可以被划分为多个类别。每个类别建立一个文件夹，文件夹名称为类别名称，将图片放在其中。
+第二步：制作类别说明文件
+在images文件夹同级目录下新建一个文本文件classes.txt，将类别名称写入，要求符合ImageNet格式。
+参考示例如下：
+cat
+dog
+此时前两步整理的文件夹应是如下格式：
+原数据集（图像分类）
+|---images
+    |---class1
+          |----xxx.jpg/png/....
+    |---class2
+          |----xxx.jpg/png/....
+    |---class3
+          |----xxx.jpg/png/....
+    |---classN
+          |----xxx.jpg/png/....
+classes.txt
+第三步：生成数据集
+使用BaseDT库完成数据集制作。如需了解更多BaseDT库数据集处理的功能，详见BaseDT的数据集格式转换部分。
+```python
+from BaseDT.dataset import DataSet
+ds = DataSet(r"my_dataset_catdog2") # 指定为生成数据集的路径
+默认比例为train_ratio = 0.7, test_ratio = 0.1, val_ratio = 0.2
+ds.make_dataset(r"catdog2", src_format="IMAGENET",train_ratio = 0.8, test_ratio = 0.1, val_ratio = 0.1)# 指定原始数据集的路径，数据集格式选择IMAGENET
+```
+第四步：检查数据集
+结合数据集检查提示对数据集进行调整，必要时可重做前几步，最后完成整个数据集制作。在训练的时候，只要通过model.load_dataset指定数据集的路径就可以了。
+注：网上下载的图像分类数据集也可使用上述方法完成数据集处理。
+选择2：按照标准方式制作
+第一步：整理图片
+您可以用任何设备拍摄图像，也可以从视频中抽取帧图像，需要注意，这些图像可以被划分为多个类别。每个类别建立一个文件夹，文件夹名称为类别名称，将图片放在其中，最终有一个大文件夹，包含多个以类别名命名的子文件夹。
+接下来可能需要对图片进行尺寸、保存格式等的统一，简单情况下的参考代码如下（指定准备大文件夹路径）：
+```python
+from PIL import Image
+from torchvision import transforms
+import os
+def makeDir(folder_path):
+    if not os.path.exists(folder_path):  # 判断是否存在文件夹如果不存在则创建为文件夹
+        os.makedirs(folder_path)
+classes = os.listdir('./my_dataset') # 指定原始图片路径
+read_dir = './my_photo/' # 指定原始图片路径
+new_dir = './my_newphoto' # 指定新图片路径
+for cnt in range(len(classes)):
+    r_dir = read_dir + classes[cnt] + '/'
+    files = os.listdir(r_dir)
+    for index,file in enumerate(files):
+        img_path = r_dir + file
+        img = Image.open(img_path)   # 读取图片
+        resize = transforms.Resize([224, 224])
+        IMG = resize(img)
+        w_dir = new_dir + classes[cnt] + '/'
+        makeDir(w_dir)
+        save_path = w_dir + str(index)+'.jpg'
+        IMG = IMG.convert('RGB')
+        IMG.save(save_path)
+```
+第二步：划分训练集、验证集和测试集
+根据整理的数据集大小，按照一定比例拆分训练集、验证集和测试集，可手动也可以使用如下代码将原始数据集按照“6:2:2”的比例拆分。
+```python
+import os
+import shutil
+列出指定目录下的所有文件名，确定分类信息
+classes = os.listdir('./my_newphoto')
+定义创建目录的方法
+def makeDir(folder_path):
+    if not os.path.exists(folder_path):  # 判断是否存在文件夹如果不存在则创建为文件夹
+        os.makedirs(folder_path)
+指定文件目录
+read_dir = './my_newphoto/' # 指定原始图片路径
+train_dir = './my_dataset/training_set/' # 指定训练集路径
+test_dir = './my_dataset/test_set/'# 指定测试集路径
+val_dir = './my_dataset/val_set/'# 指定验证集路径
+for cnt in range(len(classes)):
+    r_dir = read_dir + classes[cnt] + '/'  # 指定原始数据某个分类的文件目录
+    files = os.listdir(r_dir)  # 列出某个分类的文件目录下的所有文件名
+    # files = files[:4000]
+    # 按照6:2:2拆分文件名,可更换比例
+    offset1 = int(len(files) * 0.6)
+    offset2 = int(len(files) * 0.8)
+    training_data = files[:offset1]
+    val_data = files[offset1:offset2]
+    test_data = files[offset2:]
+# 根据拆分好的文件名新建文件目录放入图片
+for index,fileName in enumerate(training_data):
+    w_dir = train_dir + classes[cnt] + '/'  # 指定训练集某个分类的文件目录
+    makeDir(w_dir)
+    # shutil.copy(r_dir + fileName,w_dir + classes[cnt] + str(index)+'.jpg')
+    shutil.copy(r_dir + fileName, w_dir + str(index) + '.jpg')
+for index,fileName in enumerate(val_data):
+    w_dir = val_dir + classes[cnt] + '/'  # 指定测试集某个分类的文件目录
+    makeDir(w_dir)
+    # shutil.copy(r_dir + fileName, w_dir + classes[cnt] + str(index) + '.jpg')
+    shutil.copy(r_dir + fileName, w_dir + str(index) + '.jpg')
+for index,fileName in enumerate(test_data):
+    w_dir = test_dir + classes[cnt] + '/'  # 指定验证集某个分类的文件目录
+    makeDir(w_dir)
+    # shutil.copy(r_dir + fileName, w_dir + classes[cnt] + str(index) + '.jpg')
+    shutil.copy(r_dir + fileName, w_dir + str(index) + '.jpg')
+```
+第三步：生成标签文件
+划分完训练集、验证集和测试集，我们需要生成“classes.txt”，“val.txt”和“test.txt”。其中classes.txt包含数据集类别标签信息，每行包含一个类别名称，按照字母顺序排列。“val.txt”和“test.txt”这两个标签文件的要求是每一行都包含一个文件名和其相应的真实标签。
+可以手动完成，这里也为您提供一段用Python代码完成标签文件的程序如下所示，程序中设计了“val.txt”和“test.txt”这两个标签文件每行会包含类别名称、文件名和真实标签。
+```python
+在windows测试通过
+import os
+列出指定目录下的所有文件名，确定类别名称
+classes = os.listdir('./my_dataset/training_set')
+打开指定文件，并写入类别名称
+with open('./my_dataset/classes.txt','w') as f:
+    for line in classes:
+        str_line = line +'\n'
+        f.write(str_line) # 文件写入str_line，即类别名称
+test_dir = './my_dataset/test_set/' # 指定测试集文件路径
+打开指定文件，写入标签信息
+with open('./my_dataset/test.txt','w') as f:
+    for cnt in range(len(classes)):
+        t_dir = test_dir + classes[cnt]  # 指定测试集某个分类的文件目录
+        files = os.listdir(t_dir) # 列出当前类别的文件目录下的所有文件名
+        # print(files)
+        for line in files:
+            str_line = classes[cnt] + '/' + line + ' '+str(cnt) +'\n' 
+            f.write(str_line) 
+val_dir = './my_dataset/val_set/'  # 指定文件路径
+打开指定文件，写入标签信息
+with open('./my_dataset/val.txt', 'w') as f:
+    for cnt in range(len(classes)):
+        t_dir = val_dir + classes[cnt]  # 指定验证集某个分类的文件目录
+        files = os.listdir(t_dir)  # 列出当前类别的文件目录下的所有文件名
+        # print(files)
+        for line in files:
+            str_line = classes[cnt] + '/' + line + ' ' + str(cnt) + '\n'
+            f.write(str_line)  # 文件写入str_line，即标注信息
+```
+如果您使用的是Mac系统，可以使用下面的代码。
+```python
+本文件可以放在数据集的根目录下运行
+import os
+如果不是在数据集根目录下，可以指定路径
+set_path = './' 
+templist = os.listdir(set_path +'training_set')
+处理mac的特殊文件夹
+classes = []
+for line in templist:
+    if line[0] !='.':
+        classes.append(line)
+with open(set_path +'classes.txt','w') as f:
+    for line in classes: 
+        str_line = line +'\n'
+        f.write(str_line) # 文件分行写入，即类别名称
+val_dir = set_path +'val_set/'  # 指定验证集文件路径
+打开指定文件，写入标签信息
+with open(set_path +'val.txt', 'w') as f:
+    for cnt in range(len(classes)):
+        t_dir = val_dir + classes[cnt]  # 指定验证集某个分类的文件目录
+        files = os.listdir(t_dir)  # 列出当前类别的文件目录下的所有文件名
+        # print(files)
+        for line in files:
+            str_line = classes[cnt] + '/' + line + ' ' + str(cnt) + '\n'
+            f.write(str_line)  # 文件写入str_line，即标注信息
+test_dir = set_path +'test_set/' # 指定测试集文件路径
+打开指定文件，写入标签信息
+with open(set_path +'test.txt','w') as f:
+    for cnt in range(len(classes)):
+        t_dir = test_dir + classes[cnt]  # 指定测试集某个分类的文件目录
+        files = os.listdir(t_dir) # 列出当前类别的文件目录下的所有文件名
+        # print(files)
+        for line in files:
+            str_line = classes[cnt] + '/' + line + ' '+str(cnt) +'\n'
+            f.write(str_line)
+```
+第四步：给数据集命名
+最后，我们将这些文件放在一个文件夹中，命名为数据集的名称。这样，在训练的时候，只要通过model.load_dataset指定数据集的路径就可以了。
+其他实现方式：
+当我们采集到数据后，要准备一份可以训练的，包含training_set、val_set和test_set的规范数据集，可以用下面的代码进行转换：
+```python
+import os, random, shutil
+target_path = './target_path/'
+origin_path = './datasets/'
+train_ratio = 0.7
+val_ratio = 0.2
+test_ratio = 0.1
+random_list = True
+classes = os.listdir(origin_path)
+print(classes)
+os.makedirs(os.path.join(target_path,'training_set'))
+os.makedirs(os.path.join(target_path,'val_set'))
+os.makedirs(os.path.join(target_path,'test_set'))
+f = open(os.path.join(target_path,'classes.txt'),'w')
+for i, c in enumerate(classes):
+    f.write(c+' '+str(i)+'\n')
+    os.makedirs(os.path.join(target_path,'training_set',c))
+    os.makedirs(os.path.join(target_path,'val_set',c))
+    os.makedirs(os.path.join(target_path,'test_set',c))
+f.close()
+for c in classes:
+    image_path = os.path.join(origin_path, c)
+    images = os.listdir(image_path)
+    num = len(images)
+    if random_list == True:
+        random.shuffle(images)
+    for i,pic in enumerate(images):
+        _,ext = os.path.splitext(pic)
+        if ext !='.jpg':
+            continue
+        o_path = os.path.join(image_path,pic)
+        if i <= numtrain_ratio:
+            t_path = os.path.join(target_path, 'training_set',c,pic)
+        elif i <= num(train_ratio+val_ratio):
+            t_path = os.path.join(target_path, 'val_set',c,pic)
+        else:
+            t_path = os.path.join(target_path, 'test_set',c,pic)
+        shutil.move(o_path,t_path)
+```
+下一步：用python解压一个zip压缩包
+python
+import zipfile
+f = zipfile.ZipFile('./imagenet.zip') # 指定压缩包的路径
+f.extractall('./datasets') # 指定提取的路径
+选择3：巧用XEdu自动补齐功能快速制作
+如果您觉得整理规范格式数据集有点困难，其实您只收集了图片按照类别存放，然后完成训练集（trainning_set）、验证集（val_set）和测试集（test_set）等的拆分，最后整理在一个大的文件夹下作为您的数据集也可以符合要求。此时指定数据集路径后同样可以训练模型，因为XEdu拥有检测数据集的功能，如您的数据集缺失txt文件，会自动帮您生成“classes.txt”，“val.txt”等（如存在对应的数据文件夹）开始训练。这些txt文件会生成在您指定的数据集路径下，即帮您补齐数据集。
+选择2和选择3制作的数据集自查：数据集制作完成后如想要检查数据集，可使用BaseDT的数据集格式检查功能，结合数据集检查提示对数据集进行调整，最后完成整个数据集制作。
+
+深度学习训练参数详解
+参数
+参数是刻画模型具体形状的一系列数值。可以类比为阅读一本书时需要理解的内容，书中的章节、段落、句子和单词等结构就类比于深度学习中的参数，它们构成了具体的模型形状，需要通过训练来自动调整以优化模型效果。在深度学习的训练过程中，参数是自动形成的。参数训练的好，那么模型效果就好，就像阅读时能够准确理解书中的内容，参数训练不好，那么模型效果就差，就像阅读时理解困难或者无法掌握书中内容，模型效果差包括“欠拟合”、“过拟合”等多种情况。
+欠拟合（underfitting）可以类比为对书中内容的理解不够深入，没有完全掌握书中的信息，因此无法准确地回答问题或者表达自己的观点，这就像是阅读时没有完全掌握书中的内容，不能完整地概括或回答问题一样。就像是学生在学习某一门课程时，只是粗略地看了一下书本内容，没有系统地学习，因此无法掌握知识点的精髓。
+过拟合（overfitting）可以类比为对书中内容的理解过度深入，导致过度关注细节，无法理解书中的大意，不能准确地理解作者的意图和主旨，这就像阅读时过度关注细节而忽略了整体，不能很好地理解作者的意图和主旨。这种情况就相当于模型无法充分利用训练数据集中的信息，无法表现出较好的性能。就像是学生在学习某一门课程时，为了在考试中获得高分，刻意死记硬背了大量的题目答案，但是对于类似但略有不同的新题目，就可能无法应对。这种情况就相当于模型在训练数据集上表现得很好，但是在测试数据集上表现不佳，泛化能力较差。
+超参数
+超参数其实才是我们平时习惯说的参数。在非深度学习的算法中，我们通常通过设置参数来刻画模型，而实际上，在深度学习中，参数是自动生成的，我们可以设置的，就是一些对训练策略的约束，这些设置并不直接决定参数，因此我们常把它们称为“超参数”。这可以类比为在阅读一本书时需要做出的一些选择，如阅读速度、阅读顺序等，这些选择会影响我们理解和掌握书中内容的效果。与超参数类似，这些选择需要我们自己做出，并且需要根据我们自己的经验和目的来进行调整以获得最佳的阅读效果。
+学习率
+学习率（learning rate，lr）又称学习速率、学习步长等。学习率是控制模型在训练过程中参数更新速度的关键参数，学习率可以被视为一个步长，它决定了在优化过程中参数移动向最小化损失函数的目标值的速度。可以用读书的速度来类比学习率。如果学习率高，就好比快速翻阅书籍，能迅速把握大意，但可能错过细节，从而影响理解深度。在模型训练中，这可能导致快速提升精度，但有可能错过更精确的解决方案。另一方面，较低的学习率就像慢慢品读每一页，虽然能深入理解内容，但需要更长时间。在模型训练中，这意味着训练过程会非常缓慢。
+在实际的深度学习任务中，我们通常采用各种学习率调整策略，如学习率衰减、自适应学习率算法（例如Adam、RMSprop），以及动量优化等，来帮助找到最合适的学习率。这些策略可以在训练过程中自动调整学习率，以期达到更优的训练效果。
+选择合适的学习率和调整策略对于在可接受的时间范围内实现最佳模型性能至关重要。需要注意的是，无论学习率过高还是过低，都可能导致模型无法有效收敛或训练速度过慢。因此，选择最佳学习率通常需要根据具体任务的需求和特性，通过实验和经验判断来确定。
+学习轮次
+学习轮次（epoch）表示完成多少次训练，指的是在训练神经网络时，我们对整个训练数据集进行完整的一次训练所需的迭代次数。在每一轮中，模型会遍历整个训练集并更新参数，以尽可能减少训练误差。如果以看书做比喻，每轮看完书相当于模型通过一次完整的训练，而重复的轮数就好比我们重复多次看同一本书，可以更深入地理解和记忆书中的内容。在深度学习中，重复的轮数越多，模型对训练数据的学习就越深入，通常会得到更好的性能表现。然而，轮数过多也可能导致过拟合，即模型在训练数据上表现良好，但在测试数据上表现不佳。因此，需要在训练过程中监控模型在验证集上的性能表现，并及时停止训练以避免过拟合。通常，我们会根据实际情况选择合适的轮数，以在保证训练效果的前提下，尽可能减少训练时间和计算资源的消耗。
+批量大小
+批量大小（batch_size）表示在一次训练中同时处理的样本数量。通常情况下，批量大小越大，模型的收敛速度越快，但内存和计算资源的需求也会相应增加。如果以看书来作比喻，可以把batch_size看做是在看书时每次读取的章节数量。比如，如果batch_size等于1，那么就相当于每次只读取一章，需要不断地翻页才能完成整本书的阅读；而如果batch_size等于10，那么就相当于每次读取10章，可以一次性翻到很远的位置，节省了不少翻页的时间和劳动。如果batch_size很小，就相当于每次只读取很少的一部分内容，需要不断地翻页才能完成阅读，这会增加翻页的时间和劳动。如果batch_size很大，就相当于每次读取很多内容，可以节省不少翻页的时间和劳动，但也可能导致阅读过程中忽略掉了一些细节。因此，选择合适的batch_size是很重要的。
+关于batch_size的取值范围，应该大于类别数，小于样本数，且由于GPU对2的幂次的batch可以发挥更佳的性能，因此设置成16、32、64、128…时往往要比设置为整10、整100的倍数时表现更优。batch_size、iter、 epoch的关系如下：
+（1）batch_size：批大小，一次训练所选取的样本数，指每次训练在训练集中取batch_size个样本训练；
+（2）iter：1个iter等于使用batch_size个样本训练一次，iter可在训练日志中看到；
+（3）epoch：1个epoch等于使用训练集中的全部样本训练一次；
+如训练集有240个样本，设置batch_size=6，那么：训练完整个样本集需要：40个iter，1个epoch。
+优化器
+优化器规定了学习的方向。优化器就像看书时的阅读方式。不同的人可能有不同的阅读偏好，有些人喜欢先阅读整本书的目录和摘要，再选择性地阅读章节，有些人则更喜欢逐字逐句地仔细阅读每一页。在不同的任务中，要根据实际情况来选择优化器。
+常见的优化器是SGD和Adam。就像阅读偏好一样，不同的优化器可能会对模型的性能和训练速度产生不同的影响，需要通过实验和经验来选择最佳的优化器。
+训练策略
+训练策略就像看书时的阅读计划。在阅读一本书时，有些人可能会制定一个阅读计划，比如每天读一定的章节或一页，或者按照某种顺序阅读不同的章节，以达到更好的阅读效果。
+训练也是这样，一般先用大的学习率，再转为小的学习率继续训练。尝试使用多种优化器，经过不断尝试，让最终结果达到最优或可用的状态。在深度学习任务中，训练策略也非常重要。训练策略包括数据增强、正则化、早停等技巧，这些技巧都可以帮助我们更好地训练模型，并提高模型的性能。就像阅读计划一样，训练策略需要根据具体任务和数据集的不同来进行选择和调整，以获得最佳的训练效果。
+
+目标检测模型Faster R-CNN
+Faster R-CNN: Towards Real-Time Object Detection with Region Proposal Networks
+简介
+Faster R-CNN 是目标检测领域最为经典双阶段的方法之一，通过 RPN(Region Proposal  Networks) 区域提取网络和 R-CNN 网络联合训练实现高效目标检测。
+发展历程
+R-CNN。首先通过传统的 selective search 算法在图片上预取 2000 个左右 Region Proposal；接着将这些 Region Proposal 通过前处理统一尺寸输入到 CNN  中进行特征提取；然后把所提取的特征输入到 SVM 支持向量机中进行分类；最后对分类后的 Region Proposal 进行 bbox  回归。此时算法的整个过程较为繁琐，速度也较慢。
+Fast R-CNN。首先通过传统的  selective search 算法在图片上预取 2000 个左右 Region Proposal；接着对整张图片进行特征提取；然后利用  Region Proposal 坐标在 CNN 的最后一个特征图上进去 RoI 特征图提取；最后将所有 RoI  特征输入到分类和回归模块中。此时算法的整个过程相比 R-CNN 得到极大的简化，但依然无法联合训练。
+Faster R-CNN。首先通过可学习的 RPN 网络进行 Region Proposal 的预取；接着利用 Region Proposal 坐标在  CNN 的特征图上进行 RoI 特征图提取；然后利用 RoI Pooling  层进行空间池化使其所有特征图输出尺寸相同；最后将所有特征图输入到后续的 FC 层进行分类和回归。此时算法的整个过程一气呵成，实现了端到端训练。
+特点：区域候选网络(Region Proposal Networks,RPN)
+Faster R-CNN 的出现改变了整个目标检测算法的发展历程。之所以叫做 two-stage 检测器，原因是其包括一个区域提取网络  RPN 和 RoI Refine 网络 R-CNN，同时为了将 RPN 提取的不同大小的 RoI 特征图组成 batch 输入到后面的  R-CNN 中，在两者中间还插入了一个 RoI Pooling 层，可以保证任意大小特征图输入都可以变成指定大小输出。简要结构图如下所示：
+特点：特征金字塔(Feature Pyramid Networks,FPN)
+Faster R-CNN 之后，考虑到多尺度预测问题，后续又提出了改进版本特征金字塔 FPN(Feature Pyramid Networks for Object Detection)。 通过分析目前目标检测中存在的图像金字塔、单层预测和多层预测问题，提出了一个简单的，通过从上到下路径和横向连接，结合高分辨率、弱语义信息的特征层和低分辨率、强语义信息的特征融合，实现类似图像金字塔效果，顶层特征通过上采样和低层特征做融合，而且每层都是独立预测的，效果显著，如下图所示：
+由于其强大的性能，更加模块化现代化的设计，现在提到 Faster R-CNN, 一般默认是指的 FPN 网络。
+优点
+双阶段网络相比于单阶段网络，性能优越，检测精度高。
+可以解决多尺度、小目标问题。
+通用性强，适用各种目标检测任务，且便于迁移。
+适用领域
+目标检测
+预训练模型
+R50-FPN:  config | model
+参考文献
+@article{Ren_2017,
+   title={Faster R-CNN: Towards Real-Time Object Detection with Region Proposal Networks},
+   journal={IEEE Transactions on Pattern Analysis and Machine Intelligence},
+   publisher={Institute of Electrical and Electronics Engineers (IEEE)},
+   author={Ren, Shaoqing and He, Kaiming and Girshick, Ross and Sun, Jian},
+   year={2017},
+   month={Jun},
+}
+
+图像分类模型LeNet-5
+Backpropagation Applied to Handwritten Zip Code Recognition
+简介
+LeNet是一种用于手写体字符识别的非常高效的卷积神经网络，通常LeNet指LeNet-5。
+网络结构
+LeNet的网络结构示意图如下所示：
+即输入手写字符图片经过C1，C2，C3这3个卷积神经网络后，再经过两层全连接神经网络，输出最终的分类结果。
+优点
+简单，易于初学者学习与使用
+运行速度快，对硬件设备没有要求
+适用领域
+手写体字符识别
+参考文献
+plain
+@ARTICLE{6795724,
+  author={Y. {LeCun} and B. {Boser} and J. S. {Denker} and D. {Henderson} and R. E. {Howard} and W. {Hubbard} and L. D. {Jackel}},
+  journal={Neural Computation},
+  title={Backpropagation Applied to Handwritten Zip Code Recognition},
+  year={1989},
+  volume={1},
+  number={4},
+  pages={541-551},
+  doi={10.1162/neco.1989.1.4.541}}
+}
+
+目标检测模型Mask R-CNN
+Mask R-CNN
+简介
+Mask R-CNN由Faster R-CNN拓展而来，可以同时在一个网络中做目标检测和实例分割，特征提取采用ResNet-FPN的架构，另外多加了一个Mask预测分支，并引入了RoI Align代替Faster RCNN中的RoI Pooling。
+  
+特点：Mask预测分支
+我们知道在Faster R-CNN中，对于每个ROI（文中叫candidate object）主要有两个输出，
+一个输出是分类结果，也就是预测框的标签；
+一个输出是回归结果，也就是预测框的坐标offset。
+而Mask R-CNN则是添加了第三个输出：object mask，也就说对每个ROI都输出一个mask，该支路是通过FCN网络（如上图中的两个卷积层）来实现的。以上这三个输出支路相互之间都是平行关系，相比其他先分割再分类的实例分割算法相比，这种平行设计不仅简单而且高效。
+特点：RoIAlign
+RoIPool的目的是从RPN(区域候选网络)确定的ROI中导出较小的特征图(eg 7x7)，ROI的大小各不相同，但是RoIPool后都变成了7x7大小。RPN网络会提出若干RoI的坐标以[x,y,w,h]表示，然后输入RoI Pooling，输出7x7大小的特征图供分类和定位使用。
+问题就出在RoI Pooling的输出大小是7x7上，如果RON网络输出的RoI大小是8*8的，那么无法保证输入像素和输出像素是一一对应，首先他们包含的信息量不同（有的是1对1，有的是1对2），其次他们的坐标无法和输入对应起来。这对分类没什么影响，但是对分割却影响很大。RoIAlign的输出坐标使用插值算法得到，不再是简单的量化；每个grid中的值也不再使用max，同样使用差值算法。
+优点
+精准：识别精度高，分割准确
+高效：掩码层只给整个系统增加一小部分计算量，运行速度很快
+泛化性强：使用FasterRCNN的架构，可以兼容泛化到其他任务上
+适用领域
+广泛应用于目标检测、实例分割等领域。
+在COCO比赛目标检测(object detection)、实例分割(instance segmentation)和行人关键点检测(person keypoint detection)任务上获得第一名
+预训练模型
+Mask R-CNN预训练模型
+参考文献
+@article{He_2017,
+   title={Mask R-CNN},
+   journal={2017 IEEE International Conference on Computer Vision (ICCV)},
+   publisher={IEEE},
+   author={He, Kaiming and Gkioxari, Georgia and Dollar, Piotr and Girshick, Ross},
+   year={2017},
+   month={Oct}
+}
+
+图像分类模型MobileNet
+MobileNetV2: Inverted Residuals and Linear Bottlenecks
+介绍
+MobileNetV2是Google对MobileNetV1提出的改良版本。MobileNets系列的本身初衷是" for Mobile Vision Applications"。也就是提出一个轻量化的卷积网络模型，可以显著减少计算量和参数量，同时保持较高的准确率来提升效率，这样的模型是如此的的轻量化甚至可以在移动模型上进行训练。
+其主要创新性是采用了深度可分离卷积的思想，也就是把标准的卷积过程拆分成深度卷积和逐层卷积两个过程，大大减少了参数量。
+特点：深度可分离卷积
+传统的标准卷积操作在M通道图像的基础上，准备得到N个特征图，使用的基础卷积核尺寸为$(W \cdot H)$。
+每一个特征图对应一个filter，需要用M个小卷积核进行卷积，即每一个filter为$(W \cdot H \cdot M)$个参数，而这样的操作重复N次，就得到了N个特征图，即总参数为$(W \cdot H \cdot M \cdot N)$。
+而为了简化这一计算过程，采用两次计算：
+我们首先在深度方向进行卷积（深度卷积、逐通道卷积），先改变特征图的大小而不改变特征图的数量，即输入是M个通道，输出也是M个通道，先不涉及通道数的变化：
+可以看到，每一个filter都是单层，这一步的参数量为$(W \cdot H \cdot M)$.
+此时特征图大小已经改变，只需要从M维映射到N维即可。我们需要对每个点进行卷积（逐点卷积），添加N个filters，每个filter尺寸为$(1 \times 1 \cdot M)$，也就是我们常说的加权平均：
+可以看到，逐点卷积通过对老通道作N次“加权平均数”的运算，得到了N个新的特征图。这一步的参数量为$(1 \times 1 \cdot M \cdot N)$
+这两次计算的总参数量为$1 \times 1 \cdot M \cdot N + W \cdot H \cdot M = M \cdot (N + W \cdot H)$
+参数量是传统卷积的几分之一呢？答案是：
+$$
+\frac{M \cdot (N + W \cdot H)}{W \cdot H \cdot M \cdot N} = \frac{1}{W \cdot H } + \frac{1}{N}
+$$
+在网络中的大部分层中，我们使用的是$3 \times 3$的卷积核，而N一般是几十到几百的数量级，因此一般参数可以缩减到传统方法的九分之一。而在实际测试中，原论文指出，准确度仅有1.1%的减少，但是参数量缩减到约七分之一：
+特点：Linear Bottleneck
+MobileNetV1使用的激活函数为Relu，这个函数也是深度学习常用的激活函数之一。在MobileNetV2原始论文中，MobileNet团队指出，这个激活函数在较低维度无法保证信息的相对完整，会造成一定程度的丢失，下面这个例子有助于理解：
+有一条螺旋线$X$在二维空间内，我们使用某矩阵$T$将其映射到高维空间内，之后进行Relu操作，再使用某矩阵$T$的逆矩阵$T^{-1}$将其降维回二维。也就是说进行了一个：
+$$
+X' = T^{-1}(Relu(T \cdot X))
+$$
+的操作。如果没有任何信息损失，$X'$和$X$就会是完全一致的，论文作者给出的结果是：
+可以很直接的看出，维度越高，Relu造成的损失越小，而在低维度的情况下，信息失真很严重，这样会造成很多卷积核的死亡（权重为0）。
+于是作者在某些层舍弃了Relu，采用了线性的变化函数，进行了一次升维的操作，作者将其称之为"Linear Bottleneck"。此部分的细节我们不做深入阐述，这一步的作用就是给原网络升维，从而避免了很多卷积核的死亡。
+网络结构
+至此我们给出网络结构：
+可以从网络结构中看到上面我们描述的深度卷积层（conv2d）和逐点卷积层（conv2d 1x1）。网络结构肉眼可见的简洁和清晰，而效果也不俗。
+优点
+总结一下优点，最大的优点就是创新性的可分离卷积带来的大量参数减少，从而导致网络的轻量化。此外，V2比起V1，还增加了Linear Bottleneck机制来避免卷积核的死亡，从而提高参数利用率。
+使用领域
+算力相对较低的移动平台的模型部署
+减少大型项目的运行时间同时保留较高的准确率
+参考文献
+bibtex
+@misc{howard2017mobilenets,
+      title={MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications}, 
+      author={Andrew G. Howard and Menglong Zhu and Bo Chen and Dmitry Kalenichenko and Weijun Wang and Tobias Weyand and Marco Andreetto and Hartwig Adam},
+      year={2017},
+      eprint={1704.04861},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+}
+@misc{sandler2019mobilenetv2,
+      title={MobileNetV2: Inverted Residuals and Linear Bottlenecks}, 
+      author={Mark Sandler and Andrew Howard and Menglong Zhu and Andrey Zhmoginov and Liang-Chieh Chen},
+      year={2019},
+      eprint={1801.04381},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+}
+
+图像分类模型RegNet
+Designing Network Design Spaces
+简介
+RegNet是何凯明大神团队提出的用NAS得到的分类网络，该网络在轻量级网络领域，低FLOPs的RegNet模型也能达到很好的效果，和MobileNetV2以及ShuffleNetV2性能有的一比
+与当时分类网络的天花板EfficientNet对比，可以看到RegNetY-8.0GF的错误率比EfficientNet-B5更低，且推理速度(infer)快五倍。
+RegNet网络结构
+图中展示了网络主要由三部分组成，stem、body和head。
+stem就是一个普通的卷积层（默认包含bn以及relu），卷积核大小为3x3，步距为2，卷积核个数为32.
+body就是由4个stage堆叠组成，如图（b）所示。每经过一个stage都会将输入特征矩阵的height和width缩减为原来的一半。而每个stage又是由一系列block堆叠组成，每个stage的第一个block中存在步距为2的组卷积（主分支上）和普通卷积（捷径分支上），剩下的block中的卷积步距都是1，和ResNet类似。
+head就是分类网络中常见的分类器，由一个全局平均池化层和全连接层构成。
+特点：AnyNet设计
+论文作者说，根据他们的经验将block设计为standard residual bottlenecks block with group convolution即带有组卷积的残差结构（和ResNext的block类似），如下图所示，左图为block的stride=1的情况，右图为block的stride=2的情况：
+由图可知，主分支都是一个1x1的卷积（包括bn和relu）、一个3x3的group卷积（包括bn和relu）、再接一个1x1的卷积（包括bn）。shortcut捷径分支上当stride=1时不做任何处理，当stride=2时通过一个1x1的卷积（包括bn）进行下采样。图中的r代表分辨率简单理解为特征矩阵的高、宽，当步距s等于1时，输入输出的r保持不变，当s等于2时，输出的r为输入的一半。w代表特征矩阵的channel（注意当s=2时，输入的是$w_{i-1}$, 输出的是$w_i$即chennel会发生变化）。g代表group卷积中每个group的group width，b代表bottleneck ratio即输出特征矩阵的channel缩减为输入特征矩阵channel的$\frac{1}{b}.此时就从AnyNet的设计空间缩小到AnyNetX空间了，该空间也称为$AnyNetX_A。此时的设计空间依旧很大，接着论文中说为了获得有效的模型，又加了些限制：$d_i \leq 16$（有16种可能）, $w_i \leq 1024$且取8的整数倍（有128种可能）， $b_i \in \left{1, 2, 4\right}$（有3种可能）, $g_i \in \left{1, 2, 4, 8, 16,32\right} $（有6种可能），其中$d_i$表示stage中重复block的次数，由于body中由4个stage组成。那么现在还有大约$10^{18}$种模型配置参数（想要在这么大的空间去搜索基本不可能）：$(16⋅128⋅3⋅6)^{4}≈10^{18}$
+接着作者又尝试将所有stage中的block的$b_i$都设置为同一个参数b（shared bottleneck ratio），此时的设计空间记为$AnyNetX_B$，然后在$AnyNetX_A$和$AnyNetX_B$中通过log-uniform sampling采样方法分别采样500的模型，并在imagenet上训练10个epochs，绘制的error-cumulative prob.对比如下图所示：
+通过上图可以发现，将所有stage中的block的$b_i$都设置为同一个参数b（shared bottleneck ratio）后并没有什么明显的变化。
+剩余详细设计思路可以在CSDN博客中学习。
+参考文献
+~~~
+@article{radosavovic2020designing,
+    title={Designing Network Design Spaces},
+    author={Ilija Radosavovic and Raj Prateek Kosaraju and Ross Girshick and Kaiming He and Piotr Dollár},
+    year={2020},
+    eprint={2003.13678},
+    archivePrefix={arXiv},
+    primaryClass={cs.CV}
+}
+~~~
+
+图像分类模型RepVGG
+RepVGG: Making VGG-style ConvNets Great Again
+简介
+RepVGG是一个分类网路，该网络是在VGG网络的基础上进行改进，主要的改进点包括：（1）在VGG网络的Block块中加入了Identity和残差分支，相当于把ResNet网络中的精华应用 到VGG网络中；（2）模型推理阶段，通过Op融合策略将所有的网络层都转换为Conv3*3，便于模型的部署与加速。 该论文中的包含的亮点包括：（1）网络训练和网络推理阶段使用不同的网络架构，训练阶段更关注精度，推理阶段更关注速度
+ResNeXt网络结构
+​   上图展示了部分RepVGG网络，图A表示的是原始的ResNet网络，该网络中包含着Conv11的残差结构和Identity的残差结构，正是这些残差结构的存在解决了深层网路中的梯度消失问题，使得网络更加易于收敛。图B表示的是训练阶段的RepVGG网络架构，整个网络的主体结构和ResNet网络类似，两个网络中都包含残差结构。两个网络中的主要差异如下所述：（1）RepVGG网络中的残差块并没有跨层，如图中的绿框所示；（2）整个网络包含2种残差结构，如图中的绿框和红框所示，绿框中的残差结构仅仅包含Conv11残差分支；红框中不仅包含Conv11的残差结构，而且包含Identity残差结构。由于残差结构具有多个分支，就相当于给网络增加了多条梯度流动的路径，训练一个这样的网络，其实类似于训练了多个网络，并将多个网络融合在一个网络中，类似于模型集成的思路，不过这种思路更加简单和高效！！！（3）模型的初始阶段使用了简单的残差结构，随着模型的加深，使用了复杂的残差结构，这样不仅仅能够在网络的深层获得更鲁邦的特征表示，而且可以更好的处理网络深层的梯度消失问题。图C表示的是推理阶段的RepVGG网络，该网络的结构非常简单，整个网络均是由Conv33+Relu堆叠而成，易于模型的推理和加速。
+​   这种架构的主要优势包括：（1）当前大多数推理引擎都对Conv33做了特定的加速，假如整个网络中的每一个Conv33都能节省3ms，如果一个网络中包含30个卷积层，那么整个网络就可以节省3*30=90ms的时间，这还是初略的估算。（2）当推理阶段使用的网络层类别比较少时，我们愿意花费一些时间来完成这些模块的加速，因为这个工作的通用性很强，不失为一种较好的模型加速方案。（3）对于残差节点而言，需要当所有的残差分支都计算出对应的结果之后，才能获得最终的结果，这些残差分支的中间结果都会保存在设备的内存中，这样会对推理设备的内存具有较大的要求，来回的内存操作会降低整个网络的推理速度。而推理阶段首先在线下将模型转换为单分支结构，在设备推理阶段就能更好的提升设备的内存利用率，从而提升模型的推理速度，更直观的理解请看下图。总而言之，模型推理阶段的网络结构越简单越能起到模型加速的效果。
+特点：重参数化
+上图展示了模型推理阶段的重参数化过程，其实就是一个OP融合和OP替换的过程。图A从结构化的角度展示了整个重参数化流程， 图B从模型参数的角度展示了整个重参数化流程。整个重参数化步骤如下所示：
+步骤1-首先通过式3将残差块中的卷积层和BN层进行融合，该操作在很多深度学习框架的推理阶段都会执行。图中的灰色框中执行Conv33+BN层的融合，图中的黑色矩形框中执行Conv11+BN层的融合，图中的黄色矩形框中执行Conv3*3(卷积核设置为全1)+BN层的融合。其中Wi表示转换前的卷积层参数，$\mu_{i}$表示BN层的均值，$\sigma_{i}$表示BN层的方差，$\gamma_{i}$和$\beta_{i}$分别表示BN层的尺度因子和偏移因子，$W^{’}$和$b^{’}$分别表示融合之后的卷积的权重和偏置。
+步骤2-将融合后的卷积层转换为Conv3*3，即将具体不同卷积核的卷积均转换为具有3*3大小的卷积核的卷积。由于整个残差块中可能包含Conv1*1分支和Identity两种分支，如图中的黑框和黄框所示。对于Conv1*1分支而言，整个转换过程就是利用3*3的卷积核替换1*1的卷积核，具体的细节如图中的紫框所示，即将1*1卷积核中的数值移动到3*3卷积核的中心点即可；对于Identity分支而言，该分支并没有改变输入的特征映射的数值，那么我们可以设置一个3*3的卷积核，将所有的9个位置处的权重值都设置为1，那么它与输入的特征映射相乘之后，保持了原来的数值，具体的细节如图中的褐色框所示。
+步骤3-合并残差分支中的Conv3*3。即将所有分支的权重W和偏置B叠加起来，从而获得一个融合之后的Conv3*3网络层。
+总结
+RepVGG是一个分类网路，该网络是在VGG网络的基础上进行改进，结合了VGG网络和ResNet网络的思路，主要的创新点包括：（1）在VGG网络的Block块中加入了Identity和残差分支，相当于把ResNet网络中的精华应用 到VGG网络中；（2）模型推理阶段，通过Op融合策略将所有的网络层都转换为Conv3*3，便于模型的部署与加速。（3）这是一个通用的提升性能的Tricks,可以利用该Backbone来替换不同任务中的基准Backbone，算法性能会得到一定程度的提升。
+  尽管RepVGG网络具有以上的优势，但是该网络中也存在一些问题，具体的问题包括：（1）从训练阶段转推理阶段之前，需要执行模型重参数化操作；（2）在模型重参数化过程中会增加一些额外的计算量；（3）由于每个残差块中引入了多个残差分支，网络的参数量也增加了一些。
+参考文献
+~~~
+@inproceedings{ding2021repvgg,
+  title={Repvgg: Making vgg-style convnets great again},
+  author={Ding, Xiaohan and Zhang, Xiangyu and Ma, Ningning and Han, Jungong and Ding, Guiguang and Sun, Jian},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  pages={13733--13742},
+  year={2021}
+}
+~~~
+
+图像分类模型ResNet
+Deep Residual Learning for Image Recognition
+简介
+深度残差网络（Deep residual network, ResNet）的提出是计算机视觉领域的一件里程碑事件。
+众所周知，网络越深获得的特征越丰富，然而由于梯度消失或梯度爆炸等原因，过深的网络反而会导致性能变差，而ResNet有效的解决了这个问题，它通过学习残差并且加上一个恒等映射来拟合期望的潜在映射。
+特点：残差结构
+ResNet中经典的残差模块如下图所示
+  
+常见算法由$x$直接映射$y$，而ResNet将此过程分为两部分：一是恒等映射(identity mapping)，即直接映射完全相等的$x$，如上图中右侧曲线部分；二是残差映射(residual mapping)，残差的定义是预测值(y)和观测值(x)之间的距离，即 $F(x):=y-x$，也是网络主要训练的权重参数，如上图中左侧直线部分。因此最终输出的是 $y=F(x)+x$。
+对于“随着网络加深，性能下降”的问题，ResNet提供了两种选择方式，也就是恒等映射和残差映射，如果网络已经到达最优，继续加深网络，残差映射会趋向于0，只剩下恒等映射，这样理论上网络一直处于最优状态了，网络的性能也就不会随着深度增加而降低了。
+学习残差比学习原始特征更为容易，就好比找出两幅画的区别要比根据一幅画画出另一幅容易的多。
+ResNet网络结构
+ResNet网络是参考了VGG19网络，在其基础上加入了残差结构，如下图所示：
+  
+可以看到，ResNet相比普通网络每两层间增加了恒等映射（右侧弧形箭头）。且ResNet网络层数相比VGG有明显提升，更多网络层意味着更多参数，也意味着更好的拟合能力。
+以上是34层的ResNet（简称ResNet34）的结构图，还可以构建ResNet50、101、152等更深的网络。如此之深的网络在ResNet之前完全不可行，因为过于庞大的模型意味着计算资源的大量占用、效率低下，还面临梯度消失、梯度爆炸导致的性能退化问题。至今为止，ResNet仍是难以替代的主流模型之一。
+优点
+解决了网络随深度增加而性能退化的问题
+结构简单，效果拔群
+适用领域
+广泛应用于分类，检测，分割等领域。
+在ImageNet比赛分类(classification)、定位(localization)任务上获得第一名
+在COCO比赛检测(detection)、分割(segmentation)任务上获得第一名
+Alpha zero也使用了ResNet
+参考文献
+@inproceedings{he2016deep,
+  title={Deep residual learning for image recognition},
+  author={He, Kaiming and Zhang, Xiangyu and Ren, Shaoqing and Sun, Jian},
+  booktitle={Proceedings of the IEEE conference on computer vision and pattern recognition},
+  pages={770--778},
+  year={2016}
+}
+
+图像分类模型ResNeXt
+Aggregated Residual Transformations for Deep Neural Networks
+简介
+ResNeXt是ResNet和Inception的结合体，ResNext不需要人工设计复杂的Inception结构细节，而是每一个分支都采用相同的拓扑结构。
+如果要提高模型的准确率，传统的方法是加深或加宽网络，但随着超参数数量的增加（比如channels数，filter size等等），网络设计的难度和计算开销也会增加。ResNeXt结构可以在不增加参数复杂度的前提下提高准确率，同时还减少了超参数的数量。ResNeXt同时采用VGG堆叠的思想和Inception的split-transform-merge思想，可扩展性比Inception强，可以认为是在增加准确率的同时基本不改变或降低模型的复杂度。
+ResNeXt的本质是分组卷积（Group Convolution，通过变量基数（Cardinality）来控制组的数量。分组卷积是普通卷积和深度可分离卷积的一个折中方案，即每个分支产生的Feature Map的通道数为n(n>1)。
+特点：block单元
+如下图，左边是ResNet的基本结构，右边是构成ResNeXt网络的基本block单元：
+  
+图中的每个方框代表一层，三个数据的意义分别为输入数据的channel、fliter大小以及输出数据的channel。
+构成ResNeXt网络的基本block单元看起来与Inception Resnet中所有的基本单元极为相似，但是实际上block当中的每个sub branch都是相同的，也就是说每个被聚合的拓扑结构都是一样的，这是它与IR网络结构的本质区别，而正是基于这区别，我们可以使用分组卷积来对其进行良好实现。这样就能够使ResNeXt在保证FLOPs和参数量的前提下，通过更宽或更深的网络来提高精度。
+ResNeXt网络结构
+下图中，左边为ResNet-50的网络结构，右边为ResNeXt-50的网络结构：
+  
+ResNeXt的网络结构与ResNet类似，选择了简单的基本结构，每一组的C个不同的分支都进行相同的简单变换。上图的ResNeXt-50（32x4d）配置清单中，32指进入网络的第一个ResNeXt基本结构的分组数量C（即基数）为32，4d表示depth（每一个分组的通道数）为4，所以第一个基本结构输入通道数为128。
+可以看出，ResNet-50和ResNeXt-50（32x4d）拥有相同的参数，但是精度却更高。在具体实现上，因为1x1卷积可以合并，合并后的代码更简单并且效率更高。虽然两种模型的参数量相同，但是因为ResNeXt是分组卷积，多个分支单独进行处理，所以相较于ResNet整个一起卷积，硬件执行效率上会低一点，训练ResNeXt的每个batch的时间要更长。
+优点
+ResNeXt的网络结构更简单，可以防止对于特定数据集的过拟合，在用于自己的任务的时候，自定义和修改起来更简单
+引入了cardinality的概念，能更好的学到特征信息的不同，从而达到更好的分类效果
+参考文献
+~~~
+@article{2016Aggregated,
+  title={Aggregated Residual Transformations for Deep Neural Networks},
+  author={ Xie, S.  and  Girshick, R.  and P Dollár and  Tu, Z.  and  He, K. },
+  journal={IEEE},
+  year={2016},
+}
+~~~
+
+图像分类模型ShuffleNet_v2
+ShuffleNet V2: Practical Guidelines for Efficient CNN Architecture Design
+简介
+ShuffleNet_v2是旷视提出的轻量化网络，在移动端应用非常广泛。
+ShuffleNet_v2中提出了一个关键点，之前的轻量级网络都是通过计算网络复杂度的一个间接度量，即FLOPs为指导。通过计算浮点运算量来描述轻量级网络的快慢。但是从来不直接考虑运行的速度。在移动设备中的运行速度不仅仅需要考虑FLOPs，还需要考虑其他的因素，比如内存访问成本(memory access cost)和平台特点(platform characterics)。
+所以，ShuffleNet_v2直接通过控制不同的环境来直接测试网络在设备上运行速度的快慢，而不是通过FLOPs来判断。其次，所有性能指标都应该直接在目标平台上进行评估以反映真实效果。
+特点
+1：当卷积层的输入特征矩阵与输出特征矩阵channel相等时MAC最小(保持FLOPs不变时)
+现代网络通常采用depthwise separable convolutions ，其中pointwise convolution(即1×1卷积)占了复杂性的大部分。通过研究1×1卷积的核形，发现其形状由两个参数指定:输入通道c1和输出通道c2的数量。设h和w为feature map的空间大小，1×1卷积的FLOPs为$B = hwc_{1}c_{2}$。内存访问成本(MAC)，即内存访问操作数，为$MAC = hw(c_{1}+c_{2})+c_{1}c_{2}$
+这两个术语分别对应于输入/输出特性映射的内存访问和内核权重。这条公式也可以看成由三个部分组成：第一部分是$hwc_{1}$，对应的是输入特征矩阵的内存消耗；第二部分是$hwc_{2}$，对应的是输出特征矩阵的内存消耗。第三部分是$c_{1}*c_{2}$,对应的是卷积核的内存消耗。由均值不等式$\frac{c_{1}+c_{2}}{2} ≥ \sqrt{c_{1}c_{2}}$可以得出：
+$MAC≥2hw\sqrt{c_{1}c_{2}}+c_{1}c_{2}≥2\sqrt{hwB}+\frac{B}{hw}$，其中$B = hwc_{1}c_{2}$。因此，MAC有一个由FLOPs给出的下限。当输入和输出通道的数量相等时，它达到下界。
+表中实验通过改变比率c1: c2报告了在固定总FLOPs时的运行速度。可见，当c1: c2接近1:1时，MAC变小，网络评估速度加快。
+2：当GConv的groups增大时(保持FLOPs不变时)，MAC也会增大
+组卷积是现代网络体系结构的核心。它通过将所有通道之间的密集卷积改变为稀疏卷积(仅在通道组内)来降低计算复杂度(FLOPs)。一方面，它允许在一个固定的FLOPs下使用更多的channels，并增加网络容量(从而提高准确性)。然而，另一方面，增加的通道数量导致更多的MAC。
+$MAC=hw(c_{1}+c_{2})+\frac{c_{1}c_{2}}{g}=hwc_{1}+\frac{Bg}{c_{1}}+\frac{B}{hw}$，其中g为分组数，$B=\frac{hwc_{1}c_{2}}{g}$为FLOPs。不难看出，给定固定的输入形状$c_{1}hw$，计算代价B, MAC随着g的增长而增加。
+很明显，使用大量的组数会显著降低运行速度。例如，在GPU上使用8group比使用1group(标准密集卷积)慢两倍以上，在ARM上慢30%。这主要是由于MAC的增加。所以使用比较大组去进行组卷积是不明智的。对速度会造成比较大的影响。
+3：网络设计的碎片化程度越高，速度越慢
+虽然这种碎片化结构已经被证明有利于提高准确性，但它可能会降低效率，因为它对GPU等具有强大并行计算能力的设备不友好。它还引入了额外的开销，比如内核启动和同步。
+为了量化网络分片如何影响效率，我们评估了一系列不同分片程度的网络块。具体来说,每个构造块由1到4个1 × 1的卷积组成，这些卷积是按顺序或平行排列的。每个块重复堆叠10次。块结构上图所示。
+表中实验结果显示，在GPU上碎片化明显降低了速度，如4-fragment结构比1-fragment慢3倍。在ARM上，速度降低相对较小。
+一个比较容易理解为啥4-fragment结构比较慢的说法是，4-fragment结构需要等待每个分支处理完之后再进行下一步的操作，也就是需要等待最慢的那一个。所以，效率是比较低的。
+4：Element-wise操作带来的影响是不可忽视的
+轻量级模型中，元素操作占用了相当多的时间，特别是在GPU上。这里的元素操作符包括ReLU、AddTensor、AddBias等。将depthwise convolution作为一个element-wise operator，因为它的MAC/FLOPs比率也很高。
+可以看见表中报告了不同变体的运行时间并能观察到，在移除ReLU和shortcut后，GPU和ARM都获得了大约20%的加速。
+这里主要突出的是，这些操作会比我们想象当中的要耗时。
+总结：
+基于上述准则和实证研究，我们得出结论:一个高效的网络架构应该
+使用“平衡”卷积(等信道宽度);
+了解使用群卷积的代价;
+降低碎片化程度;
+减少元素操作。
+这些理想的属性依赖于平台特性(如内存操作和代码优化)，这些特性超出了理论FLOPs。在实际的网络设计中应该考虑到这些因素。而轻量级神经网络体系结构最新进展大多基于FLOPs的度量，没有考虑上述这些特性。
+ShuffleNetV2网络结构
+ShuffleNetV1的结构主要采用了两种技术：pointwise group convolutions与bottleneck-like structures。然后引入“channel shuffle”操作，以实现不同信道组之间的信息通信，提高准确性。
+both pointwise group convolutions与bottleneck structures均增加了MAC，与G1和G2不符合。这一成本是不可忽视的，特别是对于轻型机型。此外，使用太多group违反G3。shortcut connection中的元素element-wise add操作也是不可取的，违反了G4。因此，要实现高模型容量和高效率，关键问题是如何在不密集卷积和不过多分组的情况下，保持大量的、同样宽的信道。
+其中图c对应stride=1的情况，图d对应stride=2的情况。
+为此，ShuffleNetV2做出了改进，如图( c )所示，在每个单元的开始，c特征通道的输入被分为两个分支（在ShuffleNetV2中这里是对channels均分成两半）。根据G3，不能使用太多的分支，所以其中一个分支不作改变，另外的一个分支由三个卷积组成，它们具有相同的输入和输出通道以满足G1。两个1 × 1卷积不再是组卷积，而改变为普通的1x1卷积操作，这是为了遵循G2（需要考虑组的代价）。卷积后，两个分支被连接起来，而不是相加(G4)。因此，通道的数量保持不变(G1)。然后使用与ShuffleNetV1中相同的“channels shuffle”操作来启用两个分支之间的信息通信。需要注意，ShuffleNet v1中的“Add”操作不再存在。像ReLU和depthwise convolutions 这样的元素操作只存在于一个分支中。
+对于空间下采样，单元稍作修改，移除通道分离操作符。因此，输出通道的数量增加了一倍。具体结构见图（d）。所提出的构建块( c )( d )以及由此产生的网络称为ShuffleNet V2。基于上述分析，我们得出结论，该体系结构设计是高效的，因为它遵循了所有的指导原则。积木重复堆叠，构建整个网络。
+总体网络结构类似于ShuffleNet v1，如表所示。只有一个区别:在全局平均池之前增加了一个1 × 1的卷积层来混合特性，这在ShuffleNet v1中是没有的。与下图类似，每个block中的通道数量被缩放，生成不同复杂度的网络，标记为0.5x，1x，1.5x，2x。
+总结
+ShuffleNet v2不仅高效，而且准确。主要有两个原因：
+每个构建块的高效率使使用更多的特征通道和更大的网络容量成为可能
+在每个块中，有一半的特征通道直接穿过该块并加入下一个块。这可以看作是一种特性重用，就像DenseNet和CondenseNet的思想一样。
+参考文献
+~~~
+@inproceedings{ma2018shufflenet,
+  title={Shufflenet v2: Practical guidelines for efficient cnn architecture design},
+  author={Ma, Ningning and Zhang, Xiangyu and Zheng, Hai-Tao and Sun, Jian},
+  booktitle={Proceedings of the European conference on computer vision (ECCV)},
+  pages={116--131},
+  year={2018}
+}
+~~~
+
+目标检测模型SSD
+SSD: Single Shot MultiBox Detector
+介绍
+SSD是ECCV 2016上提出的一种目标检测算法，截至目前是主要的检测框架之一，相比Faster RCNN有明显的速度优势，相比YOLO又有明显的mAP优势。
+特点：end-to-end
+目标检测主流算法分成两个类型：
+（1）two-stage方法：RCNN系列
+通过算法产生候选框，然后再对这些候选框进行分类和回归
+（2）one-stage方法：yolo和SSD
+直接通过主干网络给出类别位置信息，不需要区域生成
+下图是给出的几类算法的精度和速度差异。
+优点
+从YOLO中继承了将detection转化为regression的思路，一次完成目标定位与分类
+基于Faster RCNN中的Anchor，提出了相似的prior box
+加入基于特征金字塔（Pyramidal Feature Hierarchy）的检测方式，即在不同感受野的feature map上预测目标
+这些设计实现了简单的端到端的训练，而且即便使用低分辨率的输入图像也能得到高的精度
+设计理念
+采用多尺度特征图用于检测
+CNN网络一般前面的特征图比较大，后面会逐渐采用stride=2的卷积或者pool来降低特征图大小，这正如图3所示，一个比较大的特征图和一个比较小的特征图，它们都用来做检测。这样做的好处是比较大的特征图来用来检测相对较小的目标，而小的特征图负责检测大目标。
+采用卷积进行检测
+SSD直接采用卷积对不同的特征图来进行提取检测结果。对于形状为mnp的特征图，只需要采用33p这样比较小的卷积核得到检测值。
+（每个添加的特征层使用一系列卷积滤波器可以产生一系列固定的预测。）
+设置先验框
+SSD借鉴faster rcnn中ancho理念，每个单元设置尺度或者长宽比不同的先验框，预测的是对于该单元格先验框的偏移量，以及每个类被预测反映框中该物体类别的置信度。
+模型结构
+VGG-Base作为基础框架用来提取图像的feature，Extra-Layers对VGG的feature做进一步处理，增加模型对图像的感受野，使得extra-layers得到的特征图承载更多抽象信息。待预测的特征图由六种特征图组成，6中特征图最终通过pred-layer得到预测框的坐标，置信度，类别信息。
+结论
+优点：
+SSD算法的优点应该很明显：运行速度可以和YOLO媲美，检测精度可以和Faster RCNN媲美。
+缺点：
+需要人工设置prior box的min_size，max_size和aspect_ratio值。网络中prior box的基础大小和形状不能直接通过学习获得，而是需要手工设置。而网络中每一层feature使用的prior box大小和形状恰好都不一样，导致调试过程非常依赖经验。
+虽然使用了pyramdial feature hierarchy的思路，但是对于小目标的recall依然一般，这是由于SSD使用conv4_3低级feature去检测小目标，而低级特征卷积层数少，存在特征提取不充分的问题。
+参考文献
+bibtex
+@article{Liu_2016,
+   title={SSD: Single Shot MultiBox Detector},
+   journal={ECCV},
+   author={Liu, Wei and Anguelov, Dragomir and Erhan, Dumitru and Szegedy, Christian and Reed, Scott and Fu, Cheng-Yang and Berg, Alexander C.},
+   year={2016},
+}
+
+图像分类模型VGG
+Very Deep Convolutional Networks for Large-Scale Image Recognition
+简介
+VGG于2014年由牛津大学科学工程系Visual Geometry Group组提出的。主要工作是证明了增加网络的深度能够在一定程度上影响网络最终的性能。VGG有两种结构，分别是VGG16和VGG19，两者除了网络深度不一样，其本质并没有什么区别。
+VGG的一个改进是采用连续的几个3x3的卷积核代替AlexNet中的较大卷积核（11x11，7x7，5x5）。对于给定的感受野（与输出有关的输入图片的局部大小），采用堆积的小卷积核是优于采用大的卷积核，因为多层非线性层可以增加网络深度来保证学习更复杂的模式，而且代价还比较小（参数更少）。
+VGG模型以较深的网络结构，较小的卷积核和池化采样域，使得其能够在获得更多图像特征的同时控制参数的个数，避免过多的计算量以及过于复杂的结构。
+特点：小卷积核和多卷积子层
+VGG使用多个较小卷积核（3x3）的卷积层代替一个卷积核较大的卷积层，一方面可以减少参数，另一方面相当于进行了更多的非线性映射，可以增加网络的拟合/表达能力。
+卷积核的大小影响到了参数量，感受野，前者关系到训练的难易以及是否方便部署到移动端等，后者关系到参数的更新、特征图的大小、特征是否提取的足够多、模型的复杂程度。
+VGG用较深的网络结构和较小的卷积核既可以保证感受视野，又能够减少卷积层的参数，比如两个3x3的卷积层叠加等价于一个5x5卷积核的效果，3个3x3卷积核叠加相加相当于一个7x7的卷积核，而且参数更少。这样可以增加非线性映射，也能很好地减少参数，而且三个卷积层的叠加，对特征学习能力更强。
+特点：全连接转卷积
+在网络测试阶段将训练阶段的三个全连接替换为三个卷积，使得测试得到的全卷积网络因为没有全连接的限制，因而可以接收任意宽或高为的输入，这在测试阶段很重要。
+如输入图像是224x224x3，若后面三个层都是全连接，那么在测试阶段就只能将测试的图像全部都要缩放大小到224x224x3，才能符合后面全连接层的输入数量要求，这样就不便于测试工作的开展。
+而“全连接转卷积”，替换过程如下：
+VGG网络结构
+下面是VGG网络的结构,VGG16包含了16个隐藏层（13个卷积层和3个全连接层），如下图中的D列所示，而VGG19包含了19个隐藏层（16个卷积层和3个全连接层），如下图中的E列所示：
+从图中可以看出，VGG网络的结构非常一致，从头到尾全部使用的是3x3的卷积和2x2的max pooling。该模型可以简单分为5个 stage，每层两卷积核池化组成，最后接3层全连接用于分类。
+作者表明，虽然两个级联的3x3 conv或三个级联的3x3 conv分别在理论上等价于一个5x5 conv及一个7x7 conv。不过它们所具的模型参数则分别要少于后两者的数目。同时作者实验表明更深（层数更多）而非更宽（conv channels更多）的网络有着自动规则自己参数的能力，因此有着更好的学习能力。
+优点
+VGGNet的结构非常简洁，整个网络都使用了同样大小的卷积核尺寸（3x3）和最大池化尺寸（2x2）
+几个小滤波器（3x3）卷积层的组合比一个大滤波器（5x5或7x7）卷积层效果更好
+验证了通过不断加深网络结构可以提升性能
+适用领域
+图像识别（用于类别较多图像识别如猫狗识别、人脸识别），图像风格换等。
+在2014年在ILSVRC大赛上获得了分类(classification)项目的第二名和定位(localization)项目的第一名
+参考文献
+@article{2014Very,
+  title={Very Deep Convolutional Networks for Large-Scale Image Recognition},
+  author={ Simonyan, K.  and  Zisserman, A. },
+  journal={Computer Science},
+  year={2014},
+}
+
+目标检测模型Yolov3
+Yolov3
+介绍
+Yolo方法是目标检测的常用算法，是一种典型的one-stage检测方法。比起two-stage的方法，one-stage的Yolo方法少了一次卷积获得proposal的过程，直接从图像中用一个卷积神经网络得出预测结果。特点是快而且精确度较高，略低于two-stage方法。Yolo的全称是you only look once，意为只检测一次，与其只有一个卷积网络吻合。是一种兼顾速度与准确率的方法。
+特点：end-to-end
+end-to-end的意思是，输入是最原始的数据，输出是想要得到的结果，不需要额外对数据集进行处理，也不需要对结果再进行加工。特征的提取，训练都在算法内部。
+这使得yolo网络目标明确，方便使用。
+特点：回归问题
+Yolo中的检测是一个回归问题，把受检测图片划分为$S \cdot S$个格子，然后对于每一个格子，预测五个值，(x,y,w,h,confidence)。
+x,y 分别为boundingbox的中心坐标（相对于本格子）
+w,h 分别为boundingbox的宽度和高度
+confidence 为置信度，计算为$confidence = P \cdot IOU$,P为groundtruth是否在本格子里，是为1，否为0；IOU为预测的boundingbox与实际groundtruth的交集比上并集的比值。
+生成的时候要对每个格子生成$2 \cdot boundingbox + classes$数量的预测值。总共就是$(S \cdot S \cdot (2 \cdot B + C))$个值。
+一个总的流程大意图如下：
+以上原理是Yolov1的原理和思想，v3与其基本思想一致，网络结构上有一些差异，v3的网络结构如下图:
+其网络结构有53个卷积层。
+优点
+只进行一次检测，速度较快
+输入输出为原图片和检测结果，便于使用
+精确度较高
+适用领域
+稍微大型的目标检测问题
+参考文献
+bibtex
+@inproceedings{redmon2016you,
+  title={You only look once: Unified, real-time object detection},
+  author={Redmon, Joseph and Divvala, Santosh and Girshick, Ross and Farhadi, Ali},
+  booktitle={Proceedings of the IEEE conference on computer vision and pattern recognition},
+  pages={779--788},
+  year={2016}
+}
+@article{redmon2018yolov3,
+  title={Yolov3: An incremental improvement},
+  author={Redmon, Joseph and Farhadi, Ali},
+  journal={arXiv preprint arXiv:1804.02767},
+  year={2018}
+}
+
+wifi摄像头模块：ESP32-CAM
+1.简介
+ESP32-CAM是一个小巧但功能强大的摄像头模块，非常适合DIY爱好者和科创项目。它可以连接Wi-Fi和蓝牙，让你轻松地进行图像捕获和视频流处理。无论你是想做一个智能小车，还是想在家里安装一个简易的监控系统，ESP32-CAM都是一个很好的选择。
+网上有多种配置教程，下文简单介绍一种配置ESP32-CAM的方式以及简单应用【注：不同配置方式涉及的库及使用方法会略有不同】。
+2.简单使用教程
+第一步：购买ESP32-CAM
+a.在淘宝、京东查找ESP32-CAM，购买一款合适的产品。
+b.核对规格：确保购买的是ESP32-CAM模块，它通常包括一个小型摄像头模块（摄像头模块可能需要自行安装）。
+c.USB接口的线，配合ESP32-CAM连接。
+注：不同型号的配置方式也可能有所不同，本教程适用的ESP32-CAM如下图所示。
+第二步：准备编程环境
+a.下载并安装arduino IDE
+这是一个编程软件，可以让你给ESP32-CAM编写和上传代码。
+下载地址：https://www.arduino.cc/en/Main/Software?setlang=cn
+b.下载完成后打开arduino IDE选择首选项
+打开配置后，添加附加开发板管理器网址（可直接复制下面的网址）
+https://dl.espressif.com/dl/package_esp32_index.json
+http://arduino.esp8266.com/stable/package_esp8266com_index.json
+c.打开工具-开发板管理器，然后搜索esp32
+选第二个esp32 by Espressif点击安装，等待安装完毕
+如因网速原因安装较慢可使用离线方法，相关文件和安装方法已上传百度云盘。
+链接：https://pan.baidu.com/s/1T2vqBC2903NnPU-Cv-Qolw
+提取码：bpri 
+第三步：连接ESP32-CAM至电脑
+将ESP32-CAM模块通过转换器连接到电脑，并在arduino ide中选择连接，工具-开发板-ESP32-esp32 Wrover Module【上一步顺利完成此步骤才会出现此选项】
+工具-端口选择COM5，如果无法识别，可能需要安装对应的COM驱动，如CH341SER.EXE。
+第四步：编写配置WIFI的代码
+a.获取编程示例
+ESP32 CAM Live Video Streaming in Python OpenCV的示例代码是：
+```
+include 
+include 
+include 
+const char WIFI_SSID = "请写入你的WIFI账号"; 
+const char WIFI_PASS = "请写入你的WIFI密码";
+WebServer server(80);
+static auto loRes = esp32cam::Resolution::find(320, 240);
+static auto midRes = esp32cam::Resolution::find(350, 530);
+static auto hiRes = esp32cam::Resolution::find(800, 600);
+void serveJpg()
+{
+  auto frame = esp32cam::capture();
+  if (frame == nullptr) {
+    Serial.println("CAPTURE FAIL");
+    server.send(503, "", "");
+    return;
+  }
+  Serial.printf("CAPTURE OK %dx%d %db\n", frame->getWidth(), frame->getHeight(),
+                static_cast(frame->size()));
+server.setContentLength(frame->size());
+  server.send(200, "image/jpeg");
+  WiFiClient client = server.client();
+  frame->writeTo(client);
+}
+void handleJpgLo()
+{
+  if (!esp32cam::Camera.changeResolution(loRes)) {
+    Serial.println("SET-LO-RES FAIL");
+  }
+  serveJpg();
+}
+void handleJpgHi()
+{
+  if (!esp32cam::Camera.changeResolution(hiRes)) {
+    Serial.println("SET-HI-RES FAIL");
+  }
+  serveJpg();
+}
+void handleJpgMid()
+{
+  if (!esp32cam::Camera.changeResolution(midRes)) {
+    Serial.println("SET-MID-RES FAIL");
+  }
+  serveJpg();
+}
+void  setup(){
+  Serial.begin(115200);
+  Serial.println();
+  {
+    using namespace esp32cam;
+    Config cfg;
+    cfg.setPins(pins::AiThinker);
+    cfg.setResolution(hiRes);
+    cfg.setBufferCount(2);
+    cfg.setJpeg(80);
+bool ok = Camera.begin(cfg);
+Serial.println(ok ? "CAMERA OK" : "CAMERA FAIL");
+}
+  WiFi.persistent(false);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+  }
+  Serial.print("http://");
+  Serial.println(WiFi.localIP());
+  Serial.println("  /cam-lo.jpg");
+  Serial.println("  /cam-hi.jpg");
+  Serial.println("  /cam-mid.jpg");
+server.on("/cam-lo.jpg", handleJpgLo);
+  server.on("/cam-hi.jpg", handleJpgHi);
+  server.on("/cam-mid.jpg", handleJpgMid);
+server.begin();
+}
+void loop()
+{
+  server.handleClient();
+}
+```
+b.新建文件，将上述代码复制到新文件中，编写Wi-Fi代码，包括指定Wi-Fi账号和密码（第五、六行代码WIFI_SSID和WIFI_PASS），其他不变。【注意：此时先不要上传代码】
+第五步：安装esp32cam库
+a.下载esp32cam库
+下载地址：https://github.com/yoursunny/esp32cam
+b.导入库
+项目-导入库-添加.ZIP库
+第六步：上传代码并获取IP地址
+单击上传按钮上传代码
+上传代码后点击esp32cam的reset键，重启esp32cam，可打开串口监视器，查看上传代码的运行情况(示例代码会输出相关ip和路径)
+下图中是串口监视器里输出的结果（如没有输出可增大默认的波特率）
+可以发现在串行监视器的IP地址下，会看到三种不同的图像分辨率 lo、hi 和 mid，根据需求使用一个。
+例如我们可以使用http://192.168.31.75/240x240.jpg，使用浏览器打开即可看到摄像头拍摄的照片，手动刷新可以看到拍摄到的一张张照片。
+也可以用下面的python代码来查看串口输出的IP信息。
+```python
+'''
+这段代码不需要理解
+仅用作读取摄像头配置信息
+1.连接摄像头数据线到电脑上（驱动）
+2.点击代码运行按钮
+3.点击摄像头上的“EN/RST”
+详解见：https://xedu.readthedocs.io/zh/master/how_to_use/scitech_tools/camera.html
+'''
+import serial
+import serial.tools.list_ports
+import time
+def find_serial_ports():
+    return serial.tools.list_ports.comports()
+def read_from_port(ser):
+    while True:
+        if ser.in_waiting > 0:
+            # 读取一行，直到遇到换行符
+            line = ser.readline().decode('utf-8').rstrip()
+            print(f'Received: {line}')
+检测所有可用的串口
+ports = find_serial_ports()
+for port_info in ports:
+    port = port_info.device
+    print(f'Found port: {port}')
+    try:
+        # 尝试打开串口，设置波特率
+        with serial.Serial(port, 115200, timeout=1) as ser:
+            print(f'Opened {port}. Starting to read data...')
+            # 给设备一点时间来初始化
+            time.sleep(2)
+            # 开始读取数据
+            read_from_port(ser)
+    except serial.SerialException:
+        print(f'Cannot open {port}. It might be in use or not available.')
+如果没有找到串口，则打印消息
+if not ports:
+    print('No available serial ports found')
+```
+注：同一个WIFI下IP地址不会发生变化。
+3.简单应用：在Python中测试实时视频流
+由前文可知通过ESP32-CAM获取的是一张照片，如果编写代码一直读就是视频流了。下面这段代码是连接esp32cam摄像头，获取视频流并将图片展示在窗口（需要将代码中的ip改为上述串口监视器中输出的ip）的参考代码。
+```python
+import cv2
+import urllib.request
+import numpy as np
+url = 'http://192.168.31.75/240x240.jpg' # 填写串口监视器中输出的ip地址
+cv2.namedWindow("live Cam Testing", cv2.WINDOW_AUTOSIZE)
+创建VideoCapture对象
+cap = cv2.VideoCapture(url)
+检查是否成功打开摄像头
+if not cap.isOpened():
+    print("Failed to open the IP camera stream")
+    exit()
+读取并显示视频帧
+while True:
+    img_resp=urllib.request.urlopen(url) #通过URL请求获取一帧图像
+    imgnp=np.array(bytearray(img_resp.read()),dtype=np.uint8) # 将获取的图像转换为numpy数组
+    im = cv2.imdecode(imgnp,-1) # 解码图像
+    im = cv2.flip(im, 1) # 将图像水平翻转，1代表水平翻转
+# 在窗口中显示图像
+cv2.imshow('live Cam Testing',im)
+key=cv2.waitKey(5)
+if key==ord('q'): # 按q键退出循环
+    break
+cap.release() # 释放VideoCapture对象
+cv2.destroyAllWindows() # 关闭所有OpenCV创建的窗口
+```
+在此基础上，可继续编写更复杂的python代码，例如对接收的照片进行各种模型推理的操作，甚至还可以连接小车做一个无人行驶小车（例如有人对ESP32-CAM进行了封装组装成了一款JTANK履带车，我们在其基础上制作成了一辆识行小车）。
+本文参考：https://www.electroniclinic.com/esp32-cam-with-python-opencv-yolo-v3-for-object-detection-and-identification/
+借助ESP32-CAM还能连接SIOT做各种智联网应用，下面这段代码的主要功能是读取摄像头图片，借助XEduHub完成手部检测，再向MQTT服务器发送消息，在此代码基础上，相信可以做出更多创意应用。
+```python
+import cv2
+from XEdu.hub import Workflow as wf 
+import siot
+from time import sleep
+import numpy as np
+import urllib.request
+SERVER = "iot.dfrobot.com.cn"            #MQTT服务器IP
+CLIENT_ID = "1234"                  #在SIoT上，CLIENT_ID可以留空
+IOT_pubTopic  = 'tgzrRLVIg'       #“topic”为“项目名称/设备名称”
+IOT_UserName ='75HzWwL7R'            #用户名
+IOT_PassWord ='ncNkZQL7Rz'         #密码
+siot.init(CLIENT_ID,SERVER,user=IOT_UserName,password=IOT_PassWord)
+siot.connect()
+siot.loop()
+siot.publish_save(IOT_pubTopic, 'stop')
+print("Before URL")rtsp://[username]:[password]@192.168.1.64/1'
+url = 'http://192.168.31.94/240x240.jpg' 
+cap = cv2.VideoCapture(url)
+Check if the IP camera stream is opened successfully
+if not cap.isOpened():
+    print("Failed to open the IP camera stream")
+    exit()
+print("After URL")
+model=wf(task='det_hand')
+print(model)
+cmd=''
+last=''
+while True:
+    img_resp=urllib.request.urlopen(url)
+    imgnp=np.array(bytearray(img_resp.read()),dtype=np.uint8)
+    # 将图像水平翻转
+    frame = cv2.imdecode(imgnp,-1)
+    frame = cv2.flip(frame, 1)
+    r,img=model.inference(data=frame,img_type='cv2',thr=0.6)
+    cv2.imshow("Capturing",img)
+    #print('Running..')
+    if len(r)>0:
+        cmd='stop'
+    else:
+        cmd='go'
+if cmd!=last:
+    siot.publish_save(IOT_pubTopic, cmd)
+    last=cmd
+#sleep(0.1)
+if cv2.waitKey(1) & 0xFF == ord('q'):
+    break
+cap.release()
+cv2.destroyAllWindows()
+```
+
+数据集标注工具
+labelme
+官网：https://github.com/wkentaro/labelme
+1.安装：打开本地Python IDE终端或命令提示符，输入pip安装命令pip install labelme（建议python版本选择python3.8）
+2.操作步骤：
+a.在终端重新输入labelme即可启动labelme，此时会自动出现labelme界面。
+b.使用Open Dir或左上角File打开图片文件夹。
+c.右键选择Create Rectangle创建矩形框进行标注。点击鼠标左键，确认起始位置，注意设置类别。
+d.左侧功能栏的save保存也亮了，点击保存即保存至文件夹，会自动保存为以图片名命名的labelme格式的json文件中。比较便捷的方式可以开启自动保存后再开始标注，便不再需要每标注一张图片都点一次保存。
+快速标注小技巧：使用快捷键
+设置自动保存的方式：左上角点击File文件，选择Save Automatically。
+标注快捷键：按快捷键“ctrl”+“r”使用矩形框标注，鼠标左键并点击后框出物体，并输入类别，并点击ok完成标注，若标注框和类别不正确，按快捷键“ctrl”+“j”；若标注框和类别不正确，按快捷键“ctrl”+“j”对框的大小位置修改，“ctrl”+“j”的编辑模式下左键点击框按“ctrl”+“e”修改类别。
+labelbee
+1.下载链接：https://github.com/open-mmlab/labelbee-client
+2.操作步骤：
+a.双击运行labelbee-client.exe，可以直接切换至中文。
+b.新建单步骤项目即可开始标注，填写项目名称，选择图片文件夹、结果文件夹后到最下方，需要完成属性标注的设置，设置为要标注的类别，如plate。
+c.点击鼠标左键，确认起始位置，拖拽鼠标开始标注，注意选择我们设置的类别。
+d.标注完成后点击左上角的返回按钮返回至项目列表导出标注结果。可选多种格式，默认是labelbee格式，我们选择COCO并选择导出路径即可。
+labelbee也有网页版本哦~
+网页版数据标注：https://www.openinnolab.org.cn/pjLab/projects/channel
+
+Web库FastAPI
+1. 简介
+FastAPI 是一种现代、快速（高性能）的 Web 框架，用于基于标准 Python 类型提示使用 Python 3.7+ 构建 API。 EasyAPI 基于该库开发。
+主要特点是： 快速、运行编码快、更少的错误、直观、简单、简短、健壮、基于行业标准。
+文档地址：https://fastapi.tiangolo.com/
+本文涉及的部分代码见XEdu帮助文档配套项目集：https://www.openinnolab.org.cn/pjlab/project?id=64f54348e71e656a521b0cb5&sc=645caab8a8efa334b3f0eb24#public
+2. 安装
+可以使用使用pip命令安装FastAPI库。
+python
+pip install FastAPI
+3. 代码示例
+3.1 一个简单的WebAPI
+几行代码就能建一个Web服务器。
+python
+from fastapi import FastAPI
+import uvicorn
+app = FastAPI()
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
+uvicorn.run(app=app, host="0.0.0.0", port=8099, workers=1)
+代码是什么意思呢？
+首先代码从fastapi模块中导入了FastAPI类，该类允许我们创建一个FastAPI实例。
+接着我们创建一个该类的实例。我们将其命名为app，可以使用它来定义路由和处理程序。
+然后我们使用 route() 装饰器来告诉 FastAPI 这个函数处理HTTP GET请求，并且根路径（/）应该映射到此函数。因此，当用户在浏览器中输入API的根URL时，将会执行 root() 函数。
+函数返回一个包含“Hello World”消息的字典。FastAPI将自动将此字典转换为JSON格式并发送回客户端。
+最后，调用 uvicorn.run() 方法来启动 Web 服务器。 它需要几个参数：
+app：要运行的 FastAPI 应用程序实例。
+host：服务器将在其上侦听传入请求的主机地址。 在这里，它被设置为 0.0.0.0，这意味着它将监听所有可用的网络接口。
+port：服务器将侦听传入请求的端口号。 在这里，它设置为 8089。
+workers：用于处理传入请求的工作进程数。 在这里，它被设置为 1。
+执行运行命令后，FastAPI启动成功图如下：
+3.2 上传一个文件
+python
+from fastapi import FastAPI
+import uvicorn
+app = FastAPI()
+@app.post("/upload")
+async def upload_file(files: UploadFile = File(...)):
+    fileUpload = f"./{files.filename}"
+    with open(fileUpload, "wb") as buffer:
+        shutil.copyfileobj(files.file, buffer)
+uvicorn.run(app=app, host="0.0.0.0", port=8099, workers=1)
+代码是什么意思呢？
+首先代码从fastapi模块中导入了FastAPI类，该类允许我们创建一个FastAPI实例。
+接着我们创建一个该类的实例。我们将其命名为app，可以使用它来定义路由和处理程序。
+然后我们使用 upload_file() 装饰器来告诉 FastAPI 这个函数处理HTTP GET请求，并且根路径（/upload）应该映射到此函数。因此，当用户在浏览器中输入API的根URL时，将会执行 upload_file() 函数。
+函数 async def upload_file(files: UploadFile = File(...)) 处理了上传文件的请求并将文件保存到磁盘上，使用与请求中指定的相同的文件名。
+4. 借助FastAPI部署智能应用
+因为算力的限制，在很多应用场景中，负责采集数据的终端往往没有办法直接部署MMEdu或者其他的人工智能应用框架，也就是说没有办法在终端上直接推理。那么，先在服务器（或者一台算力较好的PC机）部署一个AI应用，提供WebAPI接口，让终端发送数据到这个服务器，服务器推理后返回推理结果。
+这种做法和很多智能终端的工作原理是一样的。如小度、天猫精灵和小爱音箱等，自己都没有处理数据的能力，都要靠网络传送数据到服务器，然后才能正确和用户交流。目前中小学的很多AI应用，都是借助百度AI开放平台的。
+在Python编程中，我们通常使用函数最小化原则来设计和组织代码。该原则的核心思想是将一个功能封装到一个函数中，使其具有高内聚性和低耦合性，以提高代码的可维护性、可读性和可重用性。
+如果要借助FastAPI部署智能应用，可以考虑将其划分为三个主要的功能模块：文件传输、预处理和推理。对于每个功能模块，我们建议创建一个单独的函数来实现它。
+文件传输函数：负责从外部获取输入数据并将其保存至本地。这个函数可以处理各种不同类型的数据，例如图片、音频或文本等，并确保它们被正确地格式化和解码。一旦完成，该函数将返回一个数据对象，供后续的预处理和推理函数使用。在EasyAPI的设计中，通常使用 3.2 上传一个文件中介绍的函数作为文件传输函数。
+预处理函数：负责将文件传输函数保存的文件加载为推理函数需要的格式，通常输入格式不一致但目标格式是一致的。
+推理函数：负责利用已经训练好的模型对输入数据进行预测和分类，并返回相应的结果。
+
+Web库Flask
+1. 简介
+Flask是一个轻量级的可定制框架，使用Python语言编写，较其他同类型框架更为灵活、轻便、安全且容易上手，其强大的插件库可以让用户实现个性化的网站定制，开发出功能强大的网站。
+文档地址：https://dormousehole.readthedocs.io/en/latest/quickstart.html
+本文涉及的部分代码见XEdu帮助文档配套项目集：https://www.openinnolab.org.cn/pjlab/project?id=64f54348e71e656a521b0cb5&sc=645caab8a8efa334b3f0eb24#public
+2. 安装
+可以使用使用pip命令安装Flask库。
+python
+pip install flask
+注：XEdu一键安装包中已经内置了Flask库。
+3. 代码示例
+3.1 最简Web服务器
+几行代码就能建一个Web服务器。
+```python
+from flask import Flask
+app = Flask(name)
+@app.route("/")
+def hello_world():
+    return "Hello, World!"
+```
+代码是什么意思呢？
+首先我们导入了 Flask 类。该类的实例将会成为我们的 WSGI 应用。
+接着我们创建一个该类的实例。第一个参数是应用模块或者包的名称。 name 是一个适用于大多数情况的快捷方式。有了这个参数， Flask 才能知道在哪里可以找到模板和静态文件等东西。
+然后我们使用 route() 装饰器来告诉 Flask 触发函数 的 URL 。
+函数返回需要在用户浏览器中显示的信息。默认的内容类型是 HTML ，因此字符串中的 HTML 会被浏览器渲染。
+3.2 上传一个文件
+```python
+from flask import Flask, request
+import os
+app = Flask(name)
+UPLOAD_FOLDER = 'uploads'
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return '没有文件上传', 400
+file = request.files['file']
+if file.filename == '':
+    return '没有选择文件', 400
+if file:
+    file.save(os.path.join(UPLOAD_FOLDER, file.filename))
+    return '文件上传成功', 200
+if name == 'main':
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
+    app.run(debug=True)
+```
+3.3 一个简单的WebAPI
+```python
+from flask import Flask, jsonify, request
+app = Flask(name)
+@app.route('/api', methods=['GET'])
+def api():
+    name = request.args.get('name', 'World')
+    return jsonify({'message': f'Hello, {name}!'})
+if name == 'main':
+    app.run(debug=True)
+```
+4. 借助Flask部署智能应用
+因为算力的限制，在很多应用场景中，负责采集数据的终端往往没有办法直接部署MMEdu或者其他的人工智能应用框架，也就是说没有办法在终端上直接推理。那么，先在服务器（或者一台算力较好的PC机）部署一个AI应用，提供WebAPI接口，让终端发送数据到这个服务器，服务器推理后返回推理结果。
+这种做法和很多智能终端的工作原理是一样的。如小度、天猫精灵和小爱音箱等，自己都没有处理数据的能力，都要靠网络传送数据到服务器，然后才能正确和用户交流。目前中小学的很多AI应用，都是借助百度AI开放平台的。
+
+Web库Gradio
+1. 简介
+Gradio是一个开源库，用于快速原型设计和部署机器学习模型的交互式界面。它提供了简单易用的接口，让用户能够轻松创建和展示机器学习模型，以及与其交互。
+gitee地址：https://gitee.com/mirrors/gradio
+官方文档：https://gradio.app/docs/
+本文涉及的部分代码见XEdu帮助文档配套项目集：https://www.openinnolab.org.cn/pjlab/project?id=64f54348e71e656a521b0cb5&sc=645caab8a8efa334b3f0eb24#public
+2. 安装
+Gradio可以采用pip命令安装，具体如下：
+python
+pip install gradio
+3. 代码示例
+下面是一个使用Gradio创建一个简单交互式界面的示例代码：
+```python
+import gradio as gr
+def greet(name):
+    return f"Hello {name}!"
+iface = gr.Interface(fn=greet, inputs="text", outputs="text")
+iface.launch()
+```
+上面的示例中，定义了一个名为"greet"的函数，它接受一个名字作为输入，并返回一个带有问候语的字符串。然后使用gr.Interface创建一个接口，指定输入类型为文本，输出类型也为文本。最后，使用launch方法来启动界面。运行效果如下：
+在网页中输入文字“xedu”后即可输出“Hello xedu”。函数“greet”的参数就是input的信息，返回的信息就输出到网页，好容易理解。
+** 技巧强调 **
+我们知道浦育平台的容器是“藏”在网页背后的虚拟服务器（电脑），网页和Notebook作为交互接口，我们没有办法直接连接访问。而只要在launch()中增加参数“share=True”，就可以穿透内网直接用域名访问。也就是说，你随时可以把这个代码成为一个网页服务，让所有人都能访问！
+4. 借助Gradio部署简易AI应用
+Gradio提供了多种部署选项，使您能够将您的智能应用部署到各种环境中。您可以将您的智能应用程序共享给其他人使用，无论是作为演示、原型验证还是实际应用。Gradio使部署变得简单而高效，让您能够专注于构建优秀的机器学习模型和交互式界面。
+借助Gradio部署MMEdu模型
+下面是一段Gradio调用MMEdu训练的图像分类模型的代码，运行这段代码，Gradio将启动一个交互式界面，您可以在其中上传图像并查看模型的预测结果。您需确保可以导入MMEdu库，且有MMEdu训练的模型，如何安装MMEdu和使用MMEdu训练模型，可参照前文。
+python
+import gradio as gr
+from MMEdu import MMClassification as cls
+model = cls(backbone = 'LeNet')
+checkpoint='best_accuracy_top-5_epoch_4.pth'
+def predict(img):
+    result = model.inference(image=img, show=False, checkpoint=checkpoint)
+    return str(result)
+image = gr.inputs.Image(type="filepath")
+iface = gr.Interface(fn=predict, inputs=image, outputs=gr.outputs.Textbox())
+iface.launch(share=True)
+运行效果如下：
+您可以根据您的模型进行相应的修改和调整，以适应您的需求。例如对输出结果做一些修饰，参考代码如下：
+```python
+import gradio as gr
+from MMEdu import MMClassification as cls
+model = cls(backbone = 'LeNet')
+checkpoint='checkpoints/cls_model/hand_gray/latest.pth'
+def predict(img):
+    result = model.inference(image=img, show=False, checkpoint=checkpoint)
+    texts = []
+    texts.append('Pred_label: {}'.format(result['pred_label']))
+    texts.append('Pred_score: {:.2f}'.format(result['pred_score']))
+    texts.append('Pred_label: {}'.format(result['pred_class']))
+    text = '\n'.join(texts)
+    return text
+image = gr.inputs.Image(type="filepath")
+iface = gr.Interface(fn=predict, inputs=image, outputs=gr.outputs.Textbox())
+iface.launch(share=True)
+```
+借助Gradio部署ONNX模型
+使用Gradio部署ONNX模型也是非常简单的，示例代码如下：
+补充：ONNX（Open Neural Network Exchange）是一个开放的、跨平台的深度学习模型表示和转换框架。它的目标是解决不同深度学习框架之间的模型兼容性问题，此处使用的ONNX模型推理的代码是借助XEdu团队推出的模型部署工具BaseDeploy，代码较为简洁。关于基于MMEdu训练的模型转换为ONNX的说明可见最后一步：AI模型转换与部署。
+python
+import gradio as gr
+import BaseDeploy as bd
+model_path = 'cls.onnx'
+def predict(img):
+    model = bd(model_path)
+    result = model.inference(img)
+    return result
+image = gr.inputs.Image(type="filepath")
+iface = gr.Interface(fn=predict, inputs=image, outputs=gr.outputs.Textbox())
+iface.launch(share=True)
+运行效果如下：
+
+开源硬件库pinpong
+1. 简介
+pinpong库是一个基于Firmata协议开发的Python硬件控制库。借助于pinpong库，直接用Python代码就能给各种常见的开源硬件编程，即使该硬件并不支持Python。
+pinpong库的原理是给开源硬件烧录一个特定的固件，使其可以通过串口与电脑通讯，执行各种命令。pinpong库的名称由“Pin”和“Pong”组成，“Pin”指引脚，“pinpong”为“乒乓球”的谐音，指信号的往复。目前pinpong库支持Arduino、掌控板、micro:bit等开源硬件，同时支持虚谷号、树莓派和拿铁熊猫等。
+GitHub地址：https://github.com/DFRobot/pinpong-docs
+本文涉及的部分代码见XEdu帮助文档配套项目集：https://www.openinnolab.org.cn/pjlab/project?id=64f54348e71e656a521b0cb5&sc=645caab8a8efa334b3f0eb24#public
+2. 安装
+可以使用使用pip命令安装pinpong库。
+python
+pip install pinpong
+注：XEdu一键安装包中已经内置了pinpong库。
+3. 代码示例
+示例程序以“Arduino”为例，复制粘贴代码到python编辑器中，并修改Board初始化版型参数为你使用的板子型号即可。
+3.1 数字输出
+实验效果：控制arduino UNO板载LED灯一秒闪烁一次。
+接线：使用windows或linux电脑连接一块arduino主控板。
+```python
+import time
+from pinpong.board import Board,Pin
+Board("uno").begin()               #初始化，选择板型(uno、microbit、RPi、handpy)和端口号，不输入端口号则进行自动识别
+Board("uno","COM36").begin()      #windows下指定端口初始化
+Board("uno","/dev/ttyACM0").begin() #linux下指定端口初始化
+Board("uno","/dev/cu.usbmodem14101").begin()   #mac下指定端口初始化
+led = Pin(Pin.D13, Pin.OUT) #引脚初始化为电平输出
+while True:
+  #led.value(1) #输出高电平 方法1
+  led.write_digital(1) #输出高电平 方法2
+  print("1") #终端打印信息
+  time.sleep(1) #等待1秒 保持状态
+  #led.value(0) #输出低电平 方法1
+  led.write_digital(0) #输出低电平 方法2
+  print("0") #终端打印信息
+  time.sleep(1) #等待1秒 保持状态
+```
+3.2 数字输入
+实验效果：使用按钮控制arduino UNO板载亮灭。
+接线：使用windows或linux电脑连接一块arduino主控板，主控板D8接一个按钮模块。
+```python
+import time
+from pinpong.board import Board,Pin
+Board("uno").begin() 
+btn = Pin(Pin.D8, Pin.IN) #引脚初始化为电平输入
+led = Pin(Pin.D13, Pin.OUT)
+while True:
+  #v = btn.value()  #读取引脚电平方法1
+  v = btn.read_digital()  #读取引脚电平方法2
+  print(v)  #终端打印读取的电平状态
+  #led.value(v)  #将按钮状态设置给led灯引脚  输出电平方法1
+  led.write_digital(v) #将按钮状态设置给led灯引脚  输出电平方法2
+  time.sleep(0.1)
+```
+3.3 模拟输入
+实验效果：打印UNO板A0口模拟值。
+接线：使用windows或linux电脑连接一块arduino主控板，主控板A0接一个旋钮模块。
+```python
+import time
+from pinpong.board import Board,Pin
+Board("uno").begin()
+adc0 = ADC(Pin(Pin.A0)) #将Pin传入ADC中实现模拟输入  模拟输入方法1
+adc0 = Pin(Pin.A0, Pin.ANALOG) #引脚初始化为电平输出 模拟输入方法2
+while True:
+  #v = adc0.read()  #读取A0口模拟信号数值 模拟输入方法1
+  v = adc0.read_analog() #读取A0口模拟信号数值 模拟输入方法2
+  print("A0=", v)
+  time.sleep(0.5)
+```
+3.4 模拟输出
+实验效果： PWM输出实验,控制LED灯亮度变化。
+接线：使用windows或linux电脑连接一块arduino主板，LED灯接到D6引脚上。
+```python
+import time
+from pinpong.board import Board,Pin
+Board("uno").begin()
+pwm0 = PWM(Pin(board,Pin.D6)) #将引脚传入PWM初始化  模拟输出方法1
+pwm0 = Pin(Pin.D6, Pin.PWM) #初始化引脚为PWM模式 模拟输出方法2
+while True:
+    for i in range(255):
+        print(i)
+        #pwm0.duty(i) #PWM输出 方法1
+        pwm0.write_analog(i) #PWM输出 方法2
+        time.sleep(0.05)
+```
+3.5 引脚中断
+实验效果：引脚模拟中断功能测试。
+接线：使用windows或linux电脑连接一块arduino主控板，主控板D8接一个按钮模块。
+```python
+import time
+from pinpong.board import Board,Pin
+Board("uno").begin()
+btn = Pin(Pin.D8, Pin.IN)
+def btn_rising_handler(pin):#中断事件回调函数
+  print("\n--rising---")
+  print("pin = ", pin)
+def btn_falling_handler(pin):#中断事件回调函数
+  print("\n--falling---")
+  print("pin = ", pin)
+def btn_both_handler(pin):#中断事件回调函数
+  print("\n--both---")
+  print("pin = ", pin)
+btn.irq(trigger=Pin.IRQ_FALLING, handler=btn_falling_handler) #设置中断模式为下降沿触发
+btn.irq(trigger=Pin.IRQ_RISING, handler=btn_rising_handler) #设置中断模式为上升沿触发，及回调函数
+btn.irq(trigger=Pin.IRQ_RISING+Pin.IRQ_FALLING, handler=btn_both_handler) #设置中断模式为电平变化时触发
+while True:
+  time.sleep(1) #保持程序持续运行
+```
+更多代码请访问官方文档。
+官方文档地址：https://pinpong.readthedocs.io/
+4. 借助pinpong开发智能作品
+开源硬件是创客的神器，而pinpong进一步降低了开源硬件的编程门槛。pinpong库的设计，是为了让开发者在开发过程中不用被繁杂的硬件型号束缚，而将重点转移到软件的实现。哪怕程序编写初期用Arduino开发，部署时改成了掌控板，只要修改一下硬件的参数就能正常运行，实现了“一次编写处处运行”。
+当学生训练出一个AI模型，就可以通过各种硬件设备进行多模态交互。当学生训练出一个简单猫狗分类模型后，加上一个舵机，就能实现智能宠物“门禁”；加上一个马达，就能做出一个智能宠物驱逐器；加上一条快门线，就能做宠物自动拍照设备。有多少创意，就能实现多少与众不同的作品。
+
+GUI库PySimpleGUI
+1. 简介
+图形用户界面（Graphical User Interface，简称 GUI，又称图形用户接口）是指采用图形方式显示的计算机操作用户界面。图形用户界面是一种人与计算机通信的界面显示格式，允许用户使用鼠标等输入设备操纵屏幕上的图标或菜单选项，以选择命令、调用文件、启动程序或执行其它一些日常任务。用户界面通常包括许多视觉元素，如图标、按钮、图形、显示文本和多种输入控件，如复选框、文本输入框等。如何给AI应用程序编写一个图形用户界面？那么就需要选择一个简单好用的GUI开发工具。
+Python作为一个容易上手，简单方便的开源编程语言，第三方的开发工具数不胜数，在GUI这个方向同样有很多的工具可以选择。比较常用的GUI开发工具有Tkinter、PyQt、wxPython、Gtk+、Kivy、FLTK和OpenGL等，其中最常用是Tkinter。Tkinter的优点在于是Python内置标准库，无需额外安装，兼容性好，但缺点在于实现效果较为普通，开发体验不好。比较受程序员推崇的是PyQt和wxPython，功能强大，界面优美，相关教程也很多，可惜学习曲线有些陡峭。在比较了多款GUI开发工具之后，我们最终推荐使用PySimpleGUI。
+PySimpleGUI的优势还在于其内置了多个GUI框架。目前已经集成了tkinter、PyQt、wxPython和 Remi等四种。其中Remi是一个Web界面开发库。如果想要将普通的GUI界面更换为Web界面，只要将前面的导入库“import PySimpleGUI as sg”一句改为“import PySimpleGUIWeb as sg”，其他代码都不需要改变，体现了“一次编写、处处运行”的理念。
+本文涉及的部分代码见XEdu帮助文档配套项目集：https://www.openinnolab.org.cn/pjlab/project?id=64f54348e71e656a521b0cb5&sc=645caab8a8efa334b3f0eb24#public
+PySimpleGUI
+底层框架: 使用的是 Python 的标准 GUI 库 tkinter 作为其底层实现。
+目标平台: 桌面环境。通过它，你可以轻松地为 Windows、Mac 和 Linux 创建原生应用程序。
+特点：
+简单的 API，允许快速构建应用程序。
+提供了大量的小部件，如按钮、文本框、列表框等。
+可以轻松地与其他 Python 库集成。
+官方GitHub仓库地址：https://github.com/PySimpleGUI/PySimpleGUI
+PySimpleGUIWeb
+底层框架: 使用 Remi 作为其底层实现，它是一个 Python GUI 库，允许你创建的 GUI 在 web 浏览器中运行。
+目标平台: Web 浏览器。它旨在为那些想要一个简单的方法来创建 web 应用程序的开发者提供解决方案。
+特点：
+不需要深入了解 web 开发或 HTML/CSS/JavaScript 的知识。
+可以在任何支持的浏览器中运行，无需客户端安装。
+API 与其他 PySimpleGUI 版本相似，使得从桌面应用迁移到 web 应用变得简单。
+官方GitHub仓库地址：https://github.com/PySimpleGUI/PySimpleGUI/tree/master/PySimpleGUIWeb
+选择PySimpleGUI还是PySimpleGUIWeb？
+在选择使用哪个版本之前，你应该首先确定你的应用程序的需求。如果你需要一个轻量级的桌面应用程序，PySimpleGUI 可能是更好的选择。如果你希望你的应用程序可以在浏览器中运行，那么 PySimpleGUIWeb 更适合。
+2. 安装
+均可以采用pip命令安装，具体如下：
+python
+pip install PySimpleGUI
+pip install PySimpleGUIWeb
+3.示例代码
+以下是一个基本的 PySimpleGUI 示例：
+```python
+导入库
+import PySimpleGUI as sg
+设计窗体布局，用列表来定义每一个元素。
+layout = [
+    [sg.Text('请输入你的名字：')],
+    [sg.Input(key='in')],
+    [sg.Button('确认'), sg.Button('取消')],
+    [sg.Text('输出：'), sg.Text(key='out')]
+]
+创建窗体
+window = sg.Window('PySimpleGUI 范例', layout)
+监视窗体的事件，并响应。
+while True:
+    # event为按钮的名称，values为一个字典
+    event, values = window.read()
+    print(event,values)
+    if event in (None, '取消'):
+        window['in'].update('')
+        window['out'].update('')
+    else:
+        if values:
+            s = '欢迎你，' + values['in']
+        window['out'].update(s)
+关闭窗体
+window.close()
+```
+上面这段代码一个简单的PySimpleGUI应用程序，它创建了一个包含文本和按钮的窗口。当用户点击"确定"按钮或关闭窗口时，程序将结束。这段代码中最核心的部分在于窗体设计和窗体事件控制部分。其中“window.read()”返回的信息中，event为按钮的名称，values则为一个字典，键名是控件的名称。仔细观察PySimpleGUI代码，会发现和Arduino、掌控板之类开源硬件程序的运行逻辑非常类似——用一个无限循环来处理输入和输出窗体事件。该代码的运行效果如下，界面样式中规中矩，看起来并不丑。
+4. 借助PySimpleGUI部署简易AI应用
+只需准备好模型后，使用PySimpleGUI创建一个带GUI的简单AI应用。考虑到计算机视觉（CV）方向的模型都需要结合摄像头，界面中得显示实时画面，那就需要借助Image类型的对象，然后在窗体事件控制部分中实时更新画面。
+示例1：带窗体的摄像头实时推理的程序（图像分类）
+下面是一段使用PySimpleGUIWeb与OpenCV来显示实时的摄像头图像并对其进行实时推理。在推理过程中，使用的是ONNX模型，推理的代码是借助XEdu团队推出的模型部署工具BaseDeploy，代码较为简洁。关于基于MMEdu训练的模型转换为ONNX的说明可见最后一步：AI模型转换与部署。
+```python
+带窗体的摄像头程序，自动推理
+模型为1000分类预训练模型（MobielNet）
+import PySimpleGUIWeb as sg
+import BaseDeploy as bd
+import cv2  #pip install opencv-python
+model_path = 'cls_imagenet.onnx'
+model = bd(model_path)
+def my_inf(frame):
+    result1 = model.inference(frame)
+    result2 = model.print_result(result1)
+    return result2
+背景色
+sg.theme('LightGreen')
+定义窗口布局
+layout = [
+  [sg.Image(filename='', key='image',size=(600, 400))],
+  [sg.Button('关闭', size=(20, 1))],
+  [sg.Text('推理结果：',key='res')]
+]
+窗口设计
+window = sg.Window('OpenCV实时图像处理',layout,size=(600, 500))
+打开内置摄像头
+cap = cv2.VideoCapture(1)
+while True:
+    event, values = window.read(timeout=0, timeout_key='timeout')
+    #实时读取图像，重设画面大小
+    ret, frame = cap.read()
+    imgSrc = cv2.resize(frame, (600,400))
+    res = my_inf(frame) 
+    if res:
+        print('推理结果为：',res)
+        window['res'].update('推理结果：'+res['预测结果'])
+#画面实时更新
+imgbytes = cv2.imencode('.png', imgSrc)[1].tobytes()
+window['image'].update(data=imgbytes)
+if event in (None, '关闭'):
+    break
+退出窗体
+cap.release()
+window.close()
+```
+示例2：带窗体的摄像头实时推理的程序（目标检测）
+一般来说，目标检测的代码会在推理画面上显示检测出来的目标，并且绘制一个矩形。因而，BaseDeploy的推理函数会返回识别后的画面。
+```python
+带窗体的摄像头程序，自动推理
+模型为80类目标检测预训练模型（SSD_Lite）
+import PySimpleGUIWeb as sg
+import BaseDeploy as bd
+import cv2  #pip install opencv-python
+model_path = 'det.onnx'
+model = bd(model_path)
+def my_inf(frame):
+    global model
+    res1, img = model.inference(frame,get_img='cv2')
+    # 转换推理结果
+    res2 = model.print_result(res1)
+    if len(res2) == 0:
+        return None,None
+    classes = []
+    print(res2)
+    # 提取预测结果
+    for res in res2:
+        classes.append(res['预测结果'])
+    return str(classes),img
+背景色
+sg.theme('LightGreen')
+定义窗口布局
+layout = [
+  [sg.Image(filename='', key='image',size=(600, 400))],
+  [sg.Button('关闭', size=(20, 1))],
+  [sg.Text('推理结果：',key='res')]
+]
+建立窗体
+window = sg.Window('OpenCV实时图像处理',layout,size=(600, 500))
+打开摄像头
+cap = cv2.VideoCapture(0)
+while True:
+    event, values = window.read(timeout=0, timeout_key='timeout')
+    if event in (None, '关闭'):
+        break
+    # 实时读取图像
+    ret, frame = cap.read()
+    res, img = my_inf(frame)
+    if res:
+        window['res'].update('推理结果：'+res)
+        newimg = img
+    else:
+        newimg = frame
+    # 实时更新画面
+    newimg = cv2.resize(newimg, (600,400))
+    imgbytes = cv2.imencode('.png', newimg)[1].tobytes()
+    window['image'].update(data=imgbytes)
+退出窗体
+cap.release()
+window.close()
+```
+
+Web库PyWebIO
+1. 简介
+顾名思义，PyWebIO库是一个基于Web方式来实现输入输出（I/O）的Python库。这是北京航空航天大学在读研究生王伟民同学用业余时间写的库。目前在GitHbu上获得了高达1.6K的Star。它允许用户像编写终端脚本一样来编写Web应用或基于浏览器的GUI应用，而无需具备HTML和JS的相关知识。
+Github地址：https://github.com/wang0618/PyWebIO
+本文涉及的部分代码见XEdu帮助文档配套项目集：https://www.openinnolab.org.cn/pjlab/project?id=64f54348e71e656a521b0cb5&sc=645caab8a8efa334b3f0eb24#public
+2. 安装
+PyWebIO可以采用pip命令安装，具体如下：
+python
+pip install PyWebIO
+注：MMEdu中已经内置了PyWebIO库。
+3. 代码示例
+PyWebIO提供了一系列命令式的交互函数来在浏览器上获取用户输入和进行输出，相当于将浏览器变成了一个“富文本终端”。如：
+```python
+from pywebio.input import *
+from pywebio.output import *
+文本输入
+s = input('请输入你的名字：')
+输出文本
+put_text('欢迎你，' + s);
+```
+运行这段代码后，浏览器会自动打开一个本地的网址，出现这样的界面。
+图1 初始网页界面
+输入姓名再点击“提交”按钮，网页上就会输出相应的文字。这种基于Web页面的“交互”，体验比黑乎乎的终端界面要好很多。
+PyWebIO支持常见的网页控件。既然PyWebI的定位就是输入和输出，那么也可以将网页控件分为这两类，部分控件的说明如表1所示。
+表1 PyWebIO支持的网页控件（部分）
+类别
+控件
+代码范例
+输入
+文本
+input("What's your name?")
+下拉选择
+select('Select', ['A', 'B'])
+多选
+checkbox("Checkbox", options=['Check me'])
+单选
+radio("Radio", options=['A', 'B', 'C'])
+多行文本
+textarea('Text', placeholder='Some text')
+文件上传
+file_upload("Select a file:")
+输出
+文本
+put_text("Hello world!");
+表格
+put_table([['Product', 'Price'],['Apple', '$5.5'], ['Banner', '$7'],]);
+图像
+put_image(open('python-logo.png', 'rb').read());
+通知消息
+toast('Awesome PyWebIO!!');
+文件
+put_file('hello_word.txt', b'hello word!');
+Html代码
+put_html('E = mc2');
+尤其值得称赞的是，PyWebIO还支持MarkDown语法。除了输入输出，PyWebIO还支持布局、协程、数据可视化等特性。通过和其他库的配合，可以呈现更加酷炫的网页效果，如图2所示。
+图2 PyWebIO结合第三方库制作的数据可视化效果
+如果需要了解更多关于PyWebIO库的资源，请访问github或者官方文档。
+文档地址：https://pywebio.readthedocs.io/
+4. 借助PyWebIO部署简易AI应用
+在人工智能教学过程中，我们常常为模型的部署而烦恼。如果训练出来的模型不能有效应用于生活，或者解决一些真实问题，则很难打动学生，激发学习兴趣。
+PyWebIO能够将AI模型快速“变身”为Web应用，上传一张照片就能输出识别结果，极大地提高了学生的学习收获感。
+例如可以设计一个函数classification实现上传图片文件-使用MMEdu训练的模型进行图片推理-输出推理结果，当然您需确保可以导入MMEdu库，且有MMEdu训练的模型，如何安装MMEdu和使用MMEdu训练模型，可参照前文。
+python
+def classification():
+    while True:
+        # 文件输入
+        s = file_upload("请上传图片:")
+        img = cv2.imdecode(np.frombuffer(s['content'], np.uint8),
+                           cv2.IMREAD_COLOR)  # s是一个文件对象，content是文件的二进制流，此方法将文件二进制流转换为np数组格式
+        cv2.imwrite('latest1.jpg', img)  # 保存图片
+        model = cls(backbone='LeNet')
+        checkpoint = '../checkpoints/cls_model/hand_gray/latest.pth'
+        result = model.inference(image='latest1.jpg', show=False, checkpoint = checkpoint)
+        chinese_result = model.print_result(result)
+        # 输出文本
+        put_text("推理结果：", str(chinese_result))
+再使用start_server方法将这个函数作为Web服务提供，设计端口号
+python
+if __name__ == '__main__':
+    start_server(classification, port=2222, cdn=False)
+
+MQTT库siot
+1. 简介
+MQTT是最常用的物联网协议之一。但是，MQTT的官方Python库明显不好用，前面要定义一个类，代码冗长，对初学者不够友好。siot是虚谷物联团队基于MQTT paho写的一个Python库，为了让初学者能够写出更加简洁、优雅的Python代码。 
+需要强调的是，siot库同时支持MicroPython，语法完全一致。 
+GitHub地址：https://github.com/vvlink/SIoT/tree/master/Python_lib/siot
+SIoT文档地址：https://siot.readthedocs.io/zh_CN/latest/
+SIoT V2 新增了可视化面板，全新升级，性能提升，可以支持更快的速度，同时使用QOS区分了快速数据以及存入数据的数据以应对不同的使用场景，网页界面也进行了更新更美观。具体可以参见：https://mindplus.dfrobot.com.cn/dashboard
+本文涉及的部分代码见XEdu帮助文档配套项目集：https://www.openinnolab.org.cn/pjlab/project?id=64f54348e71e656a521b0cb5&sc=645caab8a8efa334b3f0eb24#public
+2. 安装
+可以使用使用pip命令安装siot库。
+python
+pip install siot
+注：XEdu一键安装包中已经内置了siot库。
+3. 代码范例
+下面的代码以MQTT服务器软件SIoT为例。SIoT是一个一键部署的MQTT服务器，广泛应用于中小学的物联网教学中。
+3.1 发送消息
+```python
+import siot
+import time
+SERVER = "127.0.0.1"            #MQTT服务器IP
+CLIENT_ID = ""                  #在SIoT上，CLIENT_ID可以留空
+IOT_pubTopic  = 'xzr/001'       #“topic”为“项目名称/设备名称”
+IOT_UserName ='siot'            #用户名
+IOT_PassWord ='dfrobot'         #密码
+siot.init(CLIENT_ID, SERVER, user=IOT_UserName, password=IOT_PassWord)
+siot.connect()
+siot.loop()
+tick = 0
+while True:
+  siot.publish(IOT_pubTopic, "value %d"%tick)
+  time.sleep(1)           #隔1秒发送一次
+  tick = tick+1
+```
+3.2 订阅消息
+```python
+import siot
+import time
+SERVER = "127.0.0.1"        #MQTT服务器IP
+CLIENT_ID = ""              #在SIoT上，CLIENT_ID可以留空
+IOT_pubTopic  = 'xzr/001'   #“topic”为“项目名称/设备名称”
+IOT_UserName ='siot'        #用户名
+IOT_PassWord ='dfrobot'     #密码
+def sub_cb(client, userdata, msg):
+  print("\nTopic:" + str(msg.topic) + " Message:" + str(msg.payload))
+  # msg.payload中是消息的内容，类型是bytes，需要用解码。
+  s=msg.payload.decode()
+  print(s)
+siot.init(CLIENT_ID, SERVER, user=IOT_UserName, password=IOT_PassWord)
+siot.connect()
+siot.subscribe(IOT_pubTopic, sub_cb)
+siot.loop()
+```
+3.3 订阅多条消息
+```python
+import siot
+import time
+SERVER = "127.0.0.1"         # MQTT服务器IP
+CLIENT_ID = ""               # 在SIoT上，CLIENT_ID可以留空
+IOT_pubTopic1  = 'xzr/001'   # “topic”为“项目名称/设备名称”
+IOT_pubTopic2  = 'xzr/002'   # “topic”为“项目名称/设备名称”
+IOT_UserName ='siot'         # 用户名
+IOT_PassWord ='dfrobot'      # 密码
+def sub_cb(client, userdata, msg):  # sub_cb函数仍然只有一个，需要在参数msg.topic中对消息加以区分
+  print("\nTopic:" + str(msg.topic) + " Message:" + str(msg.payload))
+  # msg.payload中是消息的内容，类型是bytes，需要用解码。
+  s=msg.payload.decode()
+  print(s)
+siot.init(CLIENT_ID, SERVER, user=IOT_UserName, password=IOT_PassWord)
+siot.connect()
+siot.set_callback(sub_cb)       
+siot.getsubscribe(IOT_pubTopic1)  # 订阅消息1
+siot.getsubscribe(IOT_pubTopic2)  # 订阅消息2
+siot.loop()
+```
+4. 借助siot部署智联网应用
+当物联网遇上人工智能，就形成了智联网。当学生训练出一个AI模型，就可以通过物联网设备进行多模态交互。
+1）远程感知
+mind+远程图传案例
+2）远程控制
+mind+控制LED灯案例
+3）可视化展示
+mind+可视化面板案例
+
+开源硬件行空板
+1.简介
+行空板是一款拥有自主知识产权的国产教学用开源硬件，采用微型计算机架构，集成LCD彩屏、WiFi蓝牙、多种常用传感器和丰富的拓展接口。同时，其自带Linux操作系统和python环境，还预装了常用的python库，让广大师生只需两步就能开始python教学。
+快速使用教程：https://www.unihiker.com.cn/wiki/get-started
+2.简单使用教程
+1.选择合适的编程方式
+行空板自身作为一个单板计算机可以直接运行Python代码，同时默认开启了ssh服务及samba文件共享服务，因此可以用任意的文本编辑器编写代码，然后将代码传输到行空板即可运行。
+教程：https://www.unihiker.com.cn/wiki/mindplus
+2.行空板Python库安装
+打开MInd+，连接行空板，切换到代码标签页，点击库管理，此时库管理页面左上角显示行空板logo，说明此处显示的是行空板的库管理。
+如果你需要卸载库或者更新库则可以在库列表中进行操作。
+如果推荐库中没有你需要的，则可以切换到PIP模式，在输入框中输入库名字安装，右上角可以切换不同的源，例如此处安装dominate则可以输入dominate或者完整指令 pip install dominate，或者指定版本安装pip install dominate==2.5.1,提示"Successfully installed xxxx"即表示安装成功。
+例如可以在行空板安装我们的深度学习工具库XEduHub和模型部署库BaseDeploy，Mind+中甚至可以添加XEduHub积木套件和BaseDeploy积木套件，更多说明详见在Mind+中使用XEduHub和Mind+中的BaseDeploy积木块。
+3.部署模型到行空板
+参考资料1-AI猜拳机器人：https://mc.dfrobot.com.cn/thread-315543-1-1.html
+参考资料2-智能音箱：https://xedu.readthedocs.io/zh/master/how_to_use/support_resources/works/p4-smartspeaker.html
+参考资料3-手搓图像识别硬件部署应用：https://www.bilibili.com/video/BV1364y1T771?p=3
+更多AI用法：https://www.unihiker.com.cn/wiki/ai_project
+在浦育平台硬件工坊也可支持连接行空板，参考项目-行空板与XEdu：https://openinnolab.org.cn/pjlab/project?id=65bc868615387949b281d622&backpath=/pjedu/userprofile?slideKey=project&type=OWNER#public
+
+常见问题解答
+《有问必答》云文档链接：https://docs.qq.com/sheet/DQ0htU2poQlRSUmxn?tab=BB08J2
+【为了收集用户碰到的各种问题，并及时解决，我们提供了上面的有问必答文档，登录后即可添加问题和答案】
+Q1：XEdu和OpenInnoLab什么关系？都是人工智能平台吗？
+A1：XEdu是上海人工智能实验室智能教育中心为中小学AI教育设计的一套完整的学习工具。OpenInnoLab平台是上海人工智能实验室智能教育中心的开源平台，是个既可以学习AI也可以做AI项目的平台，网址就是www.openinnolab.org.cn。OpenInnoLab平台人工智能工坊提供多种主流深度学习框架的预置编程环境，包括XEdu工具的，在OpenInnoLab平台上可在线基于XEdu制作AI项目。
+Q2：运行MMEdu相关代码 - 报错：No module named 'mmcv._ext'。
+A2：①卸载mmcv：pip uninstall mmcv-full mmcv -y ②安装:pip install mmcv-full -f https://download.openmmlab.com/mmcv/dist/cpu/torch1.8/index.html
+Q3：训练时标明device='cuda‘，实际好像用的是CPU？
+A3：首先排查一下环境是否安装好了，看看cuda是否可用，如果cuda不可用，训练时标明device='cuda‘，实际用的自然还是CPU。
+Q4：XEdu有一直在更新吗？
+A4：XEdu一直在更新，迭代记录详见正式版更新记录，每次迭代后相关模块的教程也会及时配套更新。
+
+模型转换和应用
+一、简介
+用XEdu系列工具训练的模型，是否只能运行在安装了XEdu环境的电脑上？如何将训练好的AI模型方便地部署到不同的硬件设备上？这在实际应用中非常重要。XEdu提供了帮助模型转换和应用的工具。
+二、基本概念
+1.模型转换（Model Convert ）：为了让训练好的模型能在不同框架间流转，通常需要将模型从训练框架转换为推理框架。这样可以在各种硬件设备上部署模型，提高模型的通用性和实用性。
+2.模型应用（Model Applying ）：在实际问题中使用训练好的模型进行预测和分析。这通常涉及到数据预处理、模型输入、模型输出解释等步骤。模型应用的目标是将深度学习技术与实际业务场景相结合，以解决实际问题，提高工作效率和准确性。
+3.模型部署（Model Deploying ）：将训练好的模型应用到实际场景中，如手机、开发板等。模型部署需要解决环境配置、运行效率等问题。部署过程中，可能需要对模型进行优化，以适应特定的硬件和软件环境，确保模型在实际应用中的性能和稳定性。
+4.深度学习推理框架：一种让深度学习算法在实时处理环境中提高性能的框架。常见的有ONNXRuntime、NCNN、TensorRT、OpenVINO等。ONNXRuntime是微软推出的一款推理框架，支持多种运行后端包括CPU，GPU，TensorRT，DML等，是对ONNX模型最原生的支持。NCNN是腾讯公司开发的移动端平台部署工具，一个为手机端极致优化的高性能神经网络前向计算框架。NCNN仅用于推理，不支持学习。
+为什么要进行模型转换？
+模型转换的目的是让训练好的模型能在不同框架间流转。在实际应用中，模型转换主要用于工业部署，负责将模型从训练框架迁移到推理框架。这是因为随着深度学习应用和技术的发展，训练框架和推理框架的职能已经逐渐分化。训练框架主要关注易用性和研究员的需求，而推理框架关注硬件平台的优化加速，以实现更快的模型执行。由于它们的职能和侧重点不同，没有一个深度学习框架能完全满足训练和推理的需求，因此模型转换变得非常重要。
+概括： 训练框架大，塞不进两三百块钱买的硬件设备中，推理框架小，能在硬件设备上安装。要把训练出的模型翻译成推理框架能读懂的语言，才能在硬件设备上运行
+三、如何进行模型转换？
+我们可以直接使用MMEdu、BaseNN的convert函数进行一键式模型转换。
+1.MMEdu模型转换
+MMEdu内置了一个convert函数，来实现了一键式模型转换，转换前先了解一下转换要做的事情吧。
+转换准备：
+待转换的模型权重文件（用MMEdu训练）。
+需要配置两个信息：
+待转换的模型权重文件（checkpoint）和输出的文件（out_file）。
+模型转换的典型代码：
+python
+from MMEdu import MMClassification as cls
+model = cls(backbone='MobileNet')
+checkpoint = 'checkpoints/cls_model/CatsDog/best_accuracy_top-1_epoch_2.pth'
+out_file="catdog.onnx"
+model.convert(checkpoint=checkpoint, out_file=out_file)
+model.convert函数中有四个参数可以设置：
+checkpoint(string) - 必需参数，选择想要进行模型转换的权重文件，以.pth为后缀。
+out_file(string) - 必需参数，指定模型转换后的输出文件路径。
+opset_version(int) - 可选参数，设置模型算子集的版本，默认为11。
+ir_version(int) - 可选参数，设置模型转化中间表示的版本，默认为6。
+类似的，目标检测模型转换的示例代码如下：
+python
+from MMEdu import MMDetection as det
+model = det(backbone='SSD_Lite')
+checkpoint = 'checkpoints/COCO-80/ssdlite.pth'
+out_file="COCO-80.onnx"
+model.convert(checkpoint=checkpoint, out_file=out_file)
+参考项目：MMEdu模型转换
+模型转换后生成一个ONNX模型和示例代码，示例代码的使用详见后文。
+此外，我们也为提供了一些我们帮您做好转换的ONNX模型（MMEdu）。
+下载链接：https://aicarrier.feishu.cn/drive/folder/NozifkbMKlojyodZVpDcYdvonR8
+2.BaseNN模型转换
+BaseNN内置了一个convert函数，来实现了一键式模型转换，转换前先了解一下转换要做的事情吧。
+转换准备：
+待转换的模型权重文件（用BaseNN训练）。
+需要配置两个信息：
+待转换的模型权重文件（checkpoint）和输出的文件（out_file）。
+模型转换的典型代码：
+python
+from BaseNN import nn
+model = nn()
+model.convert(checkpoint="basenn_cd.pth",out_file="basenn_cd.onnx")
+model.convert()参数信息：
+checkpoint: 指定要转换的pth模型文件路径
+out_file: 指定转换出的onnx模型文件路径
+opset_version：指定转换出的onnx模型算子的版本，默认为10，注！一般情况下不需要进行设置，如果出现了算子版本不符而导致的报错，可自行设置算子版本。【可选参数】
+ir_version：指定中间表示（Intermediate Representation, 简称 IR）规范的版本，一个整数（int）类型的参数。 - 可选参数，设置模型转化中间表示的版本，默认为6。【可选参数】
+模型转换后生成一个ONNX模型和示例代码，示例代码的使用详见后文。
+四、如何快速进行模型应用？
+将转换后的模型应用于实际问题时，一般需要编写代码来加载模型、输入数据、执行预测并处理输出。这可能涉及到将输入数据转换为模型所需的格式，以及将模型的输出转换为可理解的结果。例如，在图像分类任务中，你可能需要将图像转换为张量，然后将其输入到模型中，最后将模型的输出转换为类别标签。
+为了帮助初学者快速使用，使用XEdu工具转换后除了会生成ONNX模型，还会生成一段示例代码，借助示例代码可以完成模型的快速应用。
+MMEdu模型转换后的示例代码
+```python
+from XEdu.hub import Workflow as wf
+import numpy as np
+模型声明
+mm = wf(task='mmedu',checkpoint='cls.onnx')
+待推理图像，此处仅以随机数组为例
+image = np.random.random((400,400)) # 可替换成您想要推理的图像路径,如 image = 'cat.jpg'
+模型推理
+res,img = mm.inference(data=image,img_type='cv2')
+标准化推理结果
+result = mm.format_output(lang="zh")
+可视化结果图像
+mm.show(img)
+```
+观察注释可得，修改待推理图像为您想要推理的图像路径，即可展示转换后模型的效果。此处代码借助XEduHub库实现MMEdu模型推理，安装方便，且方便部署，后文介绍几种修改示例代码完成模型应用和部署的方法。
+BaseNN模型转换后的示例代码
+```python
+from XEdu.hub import Workflow as wf
+import numpy as np
+模型声明
+basenn = wf(task='basenn',checkpoint='basenn_cd.onnx')
+待推理数据，此处仅以随机二维数组为例，以下为1个维度为4的特征
+table = np.random.random((1, 4)).astype('float32')
+模型推理
+res = basenn.inference(data=table)
+标准化推理结果
+result = basenn.format_output(lang="zh")
+```
+观察注释可得，修改待推理数据为您想要推理的数据（注意需与训练数据的特征数保持一致，且是二维数组），即可展示转换后模型的效果。此处代码借助XEduHub库实现BaseNN模型推理，安装方便，且方便部署，后文介绍几种修改示例代码完成模型应用和部署的方法。
+五、模型应用和部署
+模型应用和部署是将训练好的模型应用于实际场景的过程。这通常包括以下几个步骤：
+选择硬件和软件环境：根据实际应用需求，选择合适的硬件（如CPU、GPU、FPGA等）和软件环境（如操作系统、编程语言、库等）。
+准备ONNX模型：
+若模型转换是在平台完成，可直接下载转换好的ONNX模型（轻触文件后选择下载按钮）。
+若模型转换是在本地完成，定位到转换后的模型文件。
+如果需要将模型部署到特定硬件，还需上传模型到相应硬件。
+准备部署代码：使用模型转换时生成的示例代码作为起点，加入更多交互功能，例如连接摄像头实时识别、连接舵机控制舵机转动等。建议根据具体需求进行适当修改和调试。如果模型将部署到硬件，确保代码兼容并上传到对应硬件。
+运行代码：执行部署代码，将模型应用到实际场景中。
+通过遵循这些步骤，您可以将模型成功部署到实际应用场景中，实现模型的价值。在下面的示例代码中，我们将展示如何将转换后的模型应用到实际问题中。
+1.连接摄像头实现拍照识别
+MMEdu训练并转换的模型基本可以连接摄像头进行使用，在示例代码中加入cv2调用摄像头的代码即可。
+python
+import cv2
+from XEdu.hub import Workflow as wf
+mmcls = wf(task='mmedu',checkpoint='cats_dogs.onnx')
+cap = cv2.VideoCapture(0)
+ret, img = cap.read()
+result=  mmcls.inference(data=img)
+format_result = mmcls.format_output(lang="zh")
+cap.release()
+在上述代码基础上再加入循环即可实现实时识别的效果。
+python
+from XEdu.hub import Workflow as wf
+import cv2
+cap = cv2.VideoCapture(0)
+mmcls = wf(task='mmedu',checkpoint='cats_dogs.onnx')
+while cap.isOpened():
+    ret, img = cap.read()
+    if not ret:
+        break
+    result, result_img=  mmcls.inference(data=img,img_type='cv2')
+    format_result = mmcls.format_output(lang="zh")
+    cv2.imshow('video', result_img)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break    
+cap.release()
+cv2.destroyAllWindows()
+2.部署到硬件（以行空板为例）
+当准备好了模型应用的代码，我们可以考虑将其部署到硬件，比如行空板，通常需要遵循以下步骤。
+第一步：准备模型文件和代码文件
+确保您的模型文件（如ONNX格式）已准备好。
+确保您的代码文件已准备好（最好先在本机调试）。
+第二步：选择上传模型方式
+根据行空板的具体指南选择合适的编程平台和上传方法。这可能涉及使用特定的软件工具、命令行工具或通过网络接口。
+如使用Mind+编程，下载Mind+支持行空板的版本（V1.7.2 RC3.0及以上版本）。[Mind+官网下载]  。Mind+有XEduHub库的积木块，简单使用详见在Mind+中使用XEduHub。
+模型该如何上传到行空板上？打开文件系统，将文件拖入项目中的文件即可，在点击运行的时候Mind+会将项目中的文件里面的所有文件一起上传到行空板的mindplus文件夹中运行。
+如使用jupyter notebook编程，打开电脑的chrome浏览器，输入板子的ip10.1.2.3，就可以打开界面，此处有文件上传。
+第三步：安装库
+使用选择的编程平台安装需要的库，参考方式：行空板库安装-行空板官方文档 (unihiker.com.cn) 例如XEduHub（pip install xedu-python）
+第四步：部署和运行
+使用选择的编程平台新建代码文件编写应用模型的代码，或直接上传自己准备好且调试好的代码文件（方式同第二步上传模型的方式），注意代码中指定模型的路径需与模型在行空板的位置一致，比较简单的方式是将代码文件和ONNX模型放在同一级目录下，指定路径时只需指定文件名即可。
+运行代码并完成部署。
+行空板上部署MMEdu模型效果示例：
+在浦育平台硬件工坊也可支持连接行空板，参考项目-行空板与XEdu：https://openinnolab.org.cn/pjlab/project?id=65bc868615387949b281d622&backpath=/pjedu/userprofile?slideKey=project&type=OWNER#public
+参考项目：
+千物识别小助手：https://www.openinnolab.org.cn/pjlab/project?id=641be6d479f259135f1cf092&backpath=/pjlab/projects/list#public
+有无人检测小助手：https://www.openinnolab.org.cn/pjlab/project?id=641d3eb279f259135f870fb1&backpath=/pjlab/projects/list#public
+
+学习资源下载
+数据集下载
+下载链接：https://p6bm2if73b.feishu.cn/drive/folder/fldcnBmJlA54a9irglSoIofe8dT
+预训练模型和权重文件下载
+下载链接：https://p6bm2if73b.feishu.cn/drive/folder/fldcnxios44vrIOV9Je3wPLmExf
+ONNX模型下载
+下载链接：https://aicarrier.feishu.cn/drive/folder/NozifkbMKlojyodZVpDcYdvonR8
+这些ONNX模型均支持使用MMEdu模型转换后的示例代码进行模型应用，下载这里的ONNX模型后可直接使用（例如部署到行空板），具体操作见如何快速进行模型应用的说明。
+
+课程：新一代人工智能教师成长营（2023）
+课程简介
+新一代人工智能教师成长营（第一期），是面向中小学AI教学的教师成长公益课程。本课程由浙江省特级教师谢作如领衔指导，上海人工智能实验室智能教育中心教研团队研发。
+适用范围：小学、初中、高中；面向中小学信息技术（信息科技）在职教师，教育技术和计算机科学相关专业师范生（本科三四年级或者硕士生）。
+课程内容
+入门篇
+新一代人工智能和深度学习
+MMEdu和图像分类
+从图像采集、清洗到制作——打造个性化的AI数据集
+进阶篇
+MMEdu和目标检测
+人工智能和多模态交互
+MMEdu模型转换和AI应用部署
+课程链接
+https://www.openinnolab.org.cn/pjedu/courses/courseDetail?courseId=63b78d97a1b6125e21813899
+
+课程：AI科创作品智能稻草人的开发
+课程简介
+稻草人是农村常见的“安防设备”。在物联网和人工智能技术的支持下，“智能稻草人”功能不再局限于驱赶偷食鸟儿，而是作为现代安防设备的代表，日夜监视，发现异常情况则通过声音、动作、信息等方式进行报警。本课程立足计算机视觉技术和物联网技术，让学生从收集数据开始，然后训练深度学习模型，能够识别异常情况，并与用户互动。
+这是一个典型的跨学科学习项目课程范例。
+课程链接
+https://www.openinnolab.org.cn/pjedu/courses/courseDetail?courseId=9146b06d3db742e0b386e9b96c28062c
+
+课程：人工智能入门（初中版）
+课程简介
+面向初中学生设计的人工智能入门课程，分为认识人工智能、应用人工智能、展望人工智能三个章节，希望激发学生对人工智能的学习兴趣。
+课程链接
+https://www.openinnolab.org.cn/pjedu/courses/courseDetail?courseId=b261e1d6de444f039546774a6be424c7
+
+课程：趣味甲骨文学习小游戏
+课程简介
+《趣味甲骨文学习小游戏》是一门AI+传统文化主题的项目式学习课程，引导学生亲身参与从数据收集、模型训练到模型部署的完整过程。配合课程设计分成大任务和子任务，大任务是完成一个趣味甲骨文学习小游戏，小任务则围绕项目创作的流程进行拆分，包括主题选择、创意构思、数据准备、模型训练、游戏开发、测试优化等。使学生结合甲骨文的独特魅力，体验现代手写识别技术的神奇。借此项目，鼓励学生激发创意，设计并打造属于自己的甲骨文识别小游戏。在实践中，培养学生的团队合作、项目管理与沟通技巧。
+适用范围：初中、高中；具备基本的计算机操作知识，有初步的编程经验。
+课程内容
+实施成效预期：
+学生能够通过亲自动手实践，更深入地了解甲骨文与手写识别技术。
+培养学生的创新思维和团队协作能力。
+项目预期成果【大任务】：
+每个小组将完成一个创意的趣味甲骨文学习小游戏，并能够在班级中展示其功能和特点。
+项目任务【分任务】：
+1.启蒙与体验：体验教师提供的甲骨文分类小游戏，探索其背后的技术原理。
+2.主题选择：挑选几种具代表性的甲骨文字符，作为游戏的核心内容。
+3.创意构思：思考你的甲骨文学习游戏的玩法、功能与界面设计。
+4.数据准备：积极搜集和制作高质量的甲骨文字符图片。
+5.模型训练：利用提供的工具或平台，训练一个能准确识别所选甲骨文的模型。
+6.游戏开发：根据前期的构思，开始编程和制作你的趣味甲骨文学习小游戏。
+7.团队测试：小组成员间先行测试游戏，收集反馈并迅速迭代优化。
+8.班级分享：向全班展示你的作品，并积极听取同学们的反馈与建议，进一步完善。
+9.举一反三：学以致用，设计自己的AI应用。
+课程设计
+课程目标：
+需求与数据：认识ImageNet格式数据集；
+算法与算力：了解图像分类常见算法和LeNet、体验模型训练超参数调整；
+部署与交互：能制作简易的AI模型效果展示应用，掌握简单的用户界面设计技能教学内容。
+课时安排：
+教学资源设计：
+联网的电脑、Chrome浏览器、浦育平台、XEdu工具。
+准备了PPT、学习单。
+学习评价设计：
+评价标准：
+1.项目完成度：游戏的功能是否齐全、是否运行流畅。
+2.团队合作：每个组员的贡献如何，团队之间的沟通与合作是否顺畅。
+3.创新性：游戏中有无新颖的功能或设计。
+4.演示：展示的清晰度、组织性及与观众的互动情况。
+评价对象：
+1.小组之间的反馈：每个小组都需要对其他小组的项目给出反馈。
+2.教师反馈：教师需要对每个小组的项目进行评价，并提供改进的意见。
+课程链接
+https://www.openinnolab.org.cn/pjedu/courses/courseDetail?courseId=646caecf32f2ea160081ff42&sc=62f34141bf4f550f3e926e0e
+
+课程：走进万物智联的世界
+简介
+敬请期待。
+
+课程：神经网络和计算机视觉实验
+简介
+敬请期待。
+
+项目：在网页上训练一个AI模型并部署
+项目背景
+随着人工智能的发展和普及，深度学习已经成为人工智能的核心内容。越来越多的教育者认识到，不涉及到数据采集、模型训练和部署等内容，几乎不能称之为人工智能教育。为了降低深度学习的技术门槛，一些人工智能学习平台设计了基于Web页面的模型训练功能，即学生不需要编写代码，点点鼠标就能完成从采集数据、训练模型到推理的机器学习流程。我们将这种模型训练方式命名为Web前端模型训练。那么，这种基于网页前端训练出来的AI模型，能不能像其他模型一样，也可以部署到开源硬件，搭建出一个真正的AI应用？为此，我们对这个问题进行了深度探究，并成功实现了将一个通过Web前端训练对AI模型，转换为ONNX并部署到行空板上。
+一、收集数据训练模型（含图片上传）
+提供了Web前端模型训练功能的国内人工智能学习平台，主要有浦育、英荔和腾讯扣叮这几类。在Web前端训练一个AI模型的流程，和常见的机器学习流程是一致的，都要经历数据采集、模型训练和模型推理这三个环节，如图所示。
+相对而言，浦育平台（OpenInnoLab）在TensorFlow.js的基础上做了二次开发，功能最为强大。其不仅实现了模型训练和推理演示，还与积木编程无缝融合，学生可以将模型推理结果应用在类似Scratch的编程上，与舞台上的各种角色互动。而英荔平台似乎是谷歌Teachable Machine的镜像网站，除了在线训练模型外，还能够下载训练好模型，并且提供了TensorFlow.js模型和h5模型（Keras框架使用的模型）的转换。
+经过分析，通过TensorFlow.js训练的图像分类模型，采用的算法是谷歌团队提出的MobileNet v2。MobileNets系列的本身初衷是" for Mobile Vision Applications"，是一个轻量化的卷积网络模型，可以显著减少计算量和参数量，同时保持较高的准确率来提升效率，能够运行在算力不太高的移动设备上。
+二、下载并转换模型
+虽然英荔平台提供了h5格式的模型下载，而类似树莓派、行空板的开源硬件也能够安装Keras的环境，似乎看起来部署模型很简单。实际上h5模型的加载实在太慢了，一个简单的图像分类模型居然要2分钟才能完成，推理速度也很慢。我们在《当MMEdu遇上行空板——“智能稻草人”项目的后续研究》一文中，已经给出了在行空板上部署ONNX模型的方法。于是，我们在万能的GitHub找到了一个名为“tf2onnx”的库，先将h5模型转换为ONNX模型，然后部署在行空板上。
+tf2onnx是一个将TensorFlow（tf-1.x或tf-2.x）、keras、tensorflow.js和tflite模型转换为ONNX的工具库，可通过命令行或Python API进行操作。安装tf2onnx库的同时，还需要部署好tensorflowjs的环境。安装过程有点长，具体安装时间受制于网络速度。
+tf2onnx提供了多种转换方式。最方便的是调用命令行，参考命令如“python -m tf2onnx.convert --saved-model tensorflow-model-path --output model.onnx”。也可以调用Python API来完成转换，核心代码并不复杂，十来行代码即可完成。参考代码如下：
+```
+import tensorflow as tf
+import tf2onnx
+graph_def = tf.GraphDef()
+with tf.gfile.GFile('input.pb', 'rb') as f:
+    graph_def.ParseFromString(f.read())
+with tf.Session() as sess:
+    tf.import_graph_def(graph_def, name='')
+    g = sess.graph
+    onnx_model = tf2onnx.convert.from_session(sess, input_names=['input:0'], output_names=['output:0'])
+    with open('output.onnx', 'wb') as f:
+        f.write(onnx_model.SerializeToString())
+```
+具体转换流程如下：首先要将Web前端训练的模型下载到本地。下载的模型文件为一个压缩包，解压后可得到model.json和model.weights.bin两个文件。转换时，这两个文件要放在一个文件夹中。为了方便大家使用，我们在浦育平台上建了一个公开项目，只要将模型文件上传到平台，点击项目中的main.ipynb文件，并依次运行代码，不用修改任何路径，报成功转换后即表示运行成功。
+参考项目：https://openinnolab.org.cn/pjlab/project?id=645ddb8fd73dd91bcbf15083&sc=635638d69ed68060c638f979#public
+完成模型转换后，就可以将这一模型部署到行空板上了。行空板支持多种编程方式，我们选择一种即可。
+三、用Python编程完成模型推理
+方式一：借助XEduHub
+转换生成的ONNX模型可借助XEdu团队的XEduHub完成推理，参考代码如下：
+from XEdu.hub import Workflow as wf
+mmcls = wf(task='mmedu',checkpoint='model.onnx')# 指定使用的onnx模型
+result, result_img =  mmcls.inference(data='test/0.png',img_type='pil')# 进行模型推理
+format_result = mmcls.format_output(lang="zh")# 推理结果格式化输出
+mmcls.show(result_img)# 展示推理结果图片
+方式二：借助BaseDeploy
+还有第二种推理方式，是借助XEdu团队的BaseDeploy库完成，参考代码如下：
+import BaseDeploy as bd
+model_path = 'model.onnx'
+model = bd(model_path)
+img = 'test/0.png'
+result = model.inference(img)
+model.print_result(result)
+两种方式都兼容，方式二的最大优势见下文。
+四、用mind积木编程完成模型推理
+DFRobot的工程团队为BaseDeploy库设计了积木块，代表我们可以使用mind积木编程完成模型推理。
+首先安装库：BaseDeploy
+然后加载积木块：切换至“模块”编程—打开扩展—选择用户库—输入库链接—加载积木库。
+库链接：https://gitee.com/liliang9693/ext-BaseDeploy
+最后编写程序，填写模型名称，将图片传入进行推理仅需4个积木块即可完成（程序里面需要资源文件需先上传）。
+模型该如何上传到行空板上？打开文件系统，将文件拖入项目中的文件即可，在点击运行的时候Mind+会将项目中的文件里面的所有文件一起上传到行空板的mindplus文件夹中运行。
+五、在行空板上部署自己的模型
+最后，欢迎根据前面介绍的过程举一反三，收集数据训练一个自己的模型并进行模型转换，连接行空板，将ONNX模型上传行空板，选择合适的方式安装库、编写推理代码，便可实现将模型部署到行空板上，简单操作可查看部署模型到硬件的教程。
+
+项目：用XEdu做一个趣味甲骨文学习系统
+项目背景
+XEdu工具推出一年多来已逐渐获得中小学师生的认可，越来越多老师开始尝试用AI解决一些真实问题。作为XEdu工具团队的研究员，我常常跟老师们交流各种有趣的想法。近日有位老师提出“学完XEdu‘MNIST手写体数字’识别，能不能做点创新，试着做甲骨文识别？”给我们一个新的思路。因为现代科技的快速发展容易导致传统文化被边缘化。而甲骨文作为古老的汉字书写形式，其独特魅力和文化价值不应被遗忘。如果能够用AI技术对传统文化进行再创作，肯定很有意义，也能吸引青少年学习并欣赏甲骨文。
+经调研，近年甲骨文相关的小视频也一度非常火爆，这类视频大多是将甲骨文做成动画或表情包，创意比较单一。我们决定另辟蹊径，做个凸显互动性的学习小游戏。让学生在网页上以“涂鸦”的形式书写甲骨文，系统则给出评价，这样一来，能给学生提供更加直观、生动的学习体验，在感受甲骨文的独特魅力的同时，也体验了AI的图像分类技术的神奇。
+一、趣味甲骨文学习系统的开发技术分析
+从技术角度看，系统的核心是实现甲骨文识别。按照深度学习的一般流程，首先是收集很多甲骨文的图片，形成数据集，然后训练一个图像分类的AI模型。在XEdu工具的图像分类模块的帮助下，训练AI模型用几行代码就能完成，已经不再是难题。相对而言，难度较高的是数据集的制作。因为我们在互联网上暂时没有找到能够直接使用的甲骨文字符数据，只能自己以手绘的形式来制作这个数据集。考虑到工作量，我们仅仅选择了“人”和“大”这两个文字。
+采集数据需确保数据的质量和多样性，我们参照深度学习领域著名的手写数字数据集MNIST，进行了手绘甲骨文字符数据集的采集与整理。手绘主要使用电脑自带的画图软件进行字符手绘并保存为图片，特意使用了多种类型的，不同粗细的画笔工具绘制。每个类别的图片达到500张后，便开始整理数据集为ImageNet格式，即XEdu的图像分类模型支持的数据集格式，合理划分训练集、验证集和测试集。
+我做的数据集和MNIST对照图：
+二、趣味甲骨文学习系统的实现
+图像分类模型的方面，我们选择LeNet网络。因为对于白底黑色字符的甲骨文字符数据集来说，LeNet是非常适合的，速度快且效果好。如果不想写代码，那就用XEdu内置的EasyTrain工具。以下是EasyTrain训练的图示，“loss”表示模型在训练集上的损失值，用以衡量模型预测结果与真实值之间的差异。而“accuracy”代表每轮训练结束后，模型在验证集上的预测准确率。
+EasyTrain训练界面：
+趣味甲骨文学习系统的交互设计部分，是借助Gradio来实现的。Gradio其核心是Interface类，参考代码如图所示，通过关联的处理函数“predict”，以及定义“inputs”输入组件类型，“ouputs”输出组件类型，运行代码便可启动一个直观的、用户友好的模型交互界面。
+```
+import gradio as gr
+from MMEdu import MMClassification as cls
+model = cls(backbone = 'LeNet')
+checkpoint='best_accuracy_top-1_epoch_14.pth'
+def predict(input_img):
+    result = model.inference(image=input_img, show=False, checkpoint=checkpoint) 
+    result = model.print_result(result)
+    return input_img,result
+demo = gr.Interface(fn=predict,  inputs=gr.Image(shape=(128, 128),source="canvas"), outputs=["image","text"])
+demo.launch(share=True)
+```
+三、系统测试与完善
+当完成了简易的学习系统实现后，我们开始思考真实环境中可能遇到的挑战，调研更多丰富的模型展示系统或学习系统。归纳出两个方向的完善思路：1）从软件开发入手，尝试增加一些创新和个性化功能，如加入游戏说明、展示正确的答案并给出反馈等；2）从AI识别入手，尝试改进模型准确度和识别速度，如增加数据、调整模型结构等。
+1.设计并完善模型功能展示界面
+优化处理函数和输入输出组件来提高可玩性，比如加入学习游戏的逻辑设置，先自己输入甲骨文绘制目标文字，再进行绘图，提交后由AI判断是否准确；还可以给自己的学习系统的界面加入使用说明，计时积分等功能。
+逻辑设计的代码：
+首先需输入一个预期的指令或描述“instruction”，例如“画甲骨文字符人”。设置一个检查预测的结果是否与输入的“instruction”相匹配的反馈函数，如果匹配，返回一条鼓励的反馈：“恭喜！你画得很好！”。如果不匹配，返回一条指出错误的反馈，例如：“不太对哦，我期望的是：人，但你画的像：大。”最终反馈反馈信息和结果文本。
+```
+def instruct_and_predict(instruction, input_img=None):
+    result = model.inference(image=input_img, show=False, checkpoint=checkpoint)
+    result_text = model.print_result(result)
+    feedback = ""
+    if instruction == result_text[0]['预测结果']:
+        feedback = "恭喜！你画得很好！"
+    else:
+        feedback = f"不太对哦，我期望的是：{instruction}，但你画的像：{result_text[0]['预测结果']}。"
+return result_text, feedback
+```
+深入思考会让我们意识到当前的逻辑可能并未考虑得尽善尽美，比如“instruction”是空的，会判断吗？如果画了完全不是甲骨文字符的图案，会输出什么？也就是全文提到的真实环境中可能遇到的挑战都是我们需要考虑的细节，考虑到的同时还应积极寻找解决方案。例如，我们可以引入更多的条件判断，如检查输入是否为空，或增加置信度评估。置信度能够反映模型对其预测结果的信心程度。在图像分类任务中，置信度表示模型预测某个类别的概率大小。如果一张图片与模型可识别的任何类别都不接近，其置信度自然不会高。
+甲骨文学习小游戏运行效果：
+2.加入模型转换与应用
+模型转换为ONNX模型后，借助XEduHub可完成模型推理，代码变得更加精简，且推理速度更快，更便于学习系统的开发。
+模型转换的代码：
+from MMEdu import MMClassification as cls
+model = cls(backbone='LeNet')
+checkpoint = 'best_accuracy_top-1_epoch_11.pth'
+out_file='Oracle.onnx'
+转换后模型部署的代码：
+import gradio as gr
+from XEdu.hub import Workflow as wf
+my_cls = wf(task='MMEdu',checkpoint='Oracle.onnx')
+def predict(input_img):
+    result,image = my_cls.inference(data=input_img,img_type='cv2') 
+    re = my_cls.format_output(lang="zh")
+    return image,re
+demo = gr.Interface(fn=predict,  inputs=gr.Image(shape=(128, 128),source="canvas"), outputs=["image","text"])
+demo.launch(share=True)
+完整的项目相关文件可在以下网址找到：
+https://www.openinnolab.org.cn/pjlab/project?id=64faba48929a840fc49ced33&sc=62f34141bf4f550f3e926e0e#public
+四、从项目设计到课程开发
+当我们借助XEdu工具，成功搭建了这个趣味甲骨文学习系统后，才意识到这一做法为学生提供了一个有趣的学习途径。在制作数据集的时候，我们找了好多资料，也学到了很多关于中国古代文字的知识。而这一过程完全可以让学生来参与，也就是让学生来制作数据集。学生可以选择自己感兴趣的文字，通过研究和手绘制作出不同的数据集来。还可以通过测试，找出数据集的“瑕疵”，促使学生要研究更多的甲骨文写法，让数据集更加丰富。
+因而我们准备以这一项目为基础，开发一个完整的项目式学习课程，引导学生亲身参与从数据收集、模型训练到模型部署的完整过程。项目计划6课时，配合课程设计可将此项目分成大任务和子任务，大任务是完成一个趣味甲骨文学习小游戏，小任务则围绕项目创作的流程进行拆分，包括主题选择、创意构思、数据准备、模型训练、游戏开发、测试优化等。虽然本项目起因是为一位老师解决问题，但希望能举一反三，吸引更多的师生参与其中，让更多的人能够深入了解和掌握AI技术的强大能力，并促进对传统文化的创造性转化。
+配套课程设计：
+https://www.openinnolab.org.cn/pjedu/courses/courseDetail?courseId=646caecf32f2ea160081ff42&sc=62f34141bf4f550f3e926e0e
+
+项目：结合SIoT的智能语音识别------让掌控板也能识别语音
+一、项目概述
+将音频文件转化为图片再进行识别，是中小学创客活动中常见的语音识别方式。
+掌控板因为不能直接部署AI模型，在智能系统中往往用来担任执行设备，即执行命令、显示信息的终端设备。本项目是一个结合掌控板与行空板的项目。对蘑菇云社区发表的"AI助听器"项目进行深度分析，挖掘
+了掌控板内置麦克风的功能，设计了利用掌控板录音、行空板推理的工作方式，并给出了标准化的参考代码，为中小学AI科创项目的开发提供了新方案。
+实现的功能是掌控板监听现实环境，当其分贝超过某一阈值时，掌控板开始进行录音，将掌控板收集到的语音信息通过SIoT传输至行空板，并在行空板上执行推理后将结果返回，掌控板监听SIoT消息后，将结果回显。
+二、项目设计
+将掌控板作为下位机，获取语音，通过siot协议（mqtt教育版）发送至行空板，行空板作为上位机，执行监听siot，语音转图像，onnx后端推理，发送执行命令等功能，结合传统物联网教学设计，形成一个完整的物联网语音读取，传输，识别和反馈的设计流程。
+三、背景知识
+音频信号：
+声音以音频信号的形式表示，音频信号具有频率、带宽、分贝等参数，音频信号一般可表示为振幅和时间的函数。这些声音有多种格式，因此计算机可以对其进行读取和分析。例如：mp3
+格式、WMA (Windows Media Audio) 格式、wav (Waveform Audio File) 格式。
+时频谱图：
+时频谱图是一种用于分析信号在时间和频率上的变化的工具。它将信号在时间和频率上的特征展示在一个二维图上，可以帮助我们更好地理解信号的性质。时频谱图的横坐标是时间，纵坐标是频率，坐标点值为语音数据能量。由于是采用二维平面表达三维信息，所以能量值的大小是通过颜色来表示的，颜色深，表示该点的语音能量越强。语音的时域分析和频域分析是语音分析的两种重要方法，但是都存在着局限性。时域分析对语音信号的频率特性没有直观的了解，频域特性中又没有语音信号随时间的变化关系。而语谱图综合了时域和频域的优点，明显地显示出了语音频谱随时间的变化情况、语谱图的横轴为时间，纵轴为频率，任意给定频率成分在给定时刻的强弱用颜色深浅来表示。颜色深的，频谱值大，颜色浅的，频谱值小。语谱图上不同的黑白程度形成不同的纹路，称之为声纹，不同讲话者的声纹是不一样的，可用作声纹识别。
+SIoT实现报文分片传输：
+SIoT分片传输报文是其提出的一种通信方案，旨在解决物联网设备通信中数据量过大、丢包率高等问题。在物联网中，设备之间需要进行数据传输，但是由于物联网设备的局限性，比如内存和带宽等方面的限制，导致数据传输时可能会遇到很多问题。比如，数据量太大可能无法一次性传输完毕，而且网络不稳定，有可能导致数据包丢失或损坏。为了解决这些问题，用SIOT实现了分片传输报文的概念，将一个数据包分成多个较小的数据块进行传输，同时利用校验和和序列号等机制保证数据的完整性和正确性，以提高数据传输的可靠性。
+import binascii
+for index in range(0, len(audio_bytes), step_size):
+    b = binascii.b2a_base64(audio_bytes[index:min(index+step_size,len(audio_bytes))])
+    siot.publish(IOT_pubTopic, b)
+其中，import binascii
+是Python内置模块之一，提供了二进制数据和ASCII字符串之间转换的函数。在上述代码中，它被用于将音频字节码转换为base64编码的ASCII字符串。这段代码的作用是将大型的音频文件分成若干个较小的块，每个块大小为
+step_size ，然后通过SIOT 协议发布到指定的主题 IOT_pubTopic
+。在每次循环迭代时，使用 binascii.b2a_base64()
+函数将当前块转换为base64编码的ASCII字符串，并将其发布到指定主题。其中，
+min(index+step_size,len(audio_bytes)) 用于确保最后一个块小于等于
+step_size 大小，以避免在分块时发生错误。
+录制音频： 使用掌控板中内置的audio 模块进行音频的录制，其中
+duration 为想要录制的时间长度，一般设为1-2秒。
+audio.recorder_init(i2c)
+audio.record(audio_file, duration)
+audio.recorder_deinit()
+其中，audio.recorder_init(i2c)
+会初始化音频传感器并进行必要的设置。参数i2c指定了使用的 I2C
+总线。该函数必须在使用录音功能之前调用一次，通常只需要调用一次。audio.record(audio_file,
+duration)
+用于开始录音，并将录制的音频写入到指定的文件中（例如wav格式的文件）。参数audio_file指定了输出的音频文件路径和名称，参数duration指定了录制音频的时长，单位为秒。audio.recorder_deinit()
+则是关闭并释放音频传感器所占用的资源。通常应该在完成录音后调用该函数来释放资源，避免资源浪费和程序崩溃。
+音频监听：
+掌控板需要持续发送声音数据，行空板进行实时检测，如果检测到环境中的声音高于设定的阈值，就需要开始记录音频数据并在录制结束后，将其送进行音频预处理后送入推理机进行推理。如下图所示，当音频的能量进入阈值区域内中才开始录音。
+批量生成时频谱图： 详情见
+行空板上温州话识别
+和
+用卷积神经网络实现温州话语音分类。
+通过上述两个项目中的内置脚本，可将音频文件，批量转换为时频谱图。具体来说即是将以音频格式为结尾的文件转换为以图像格式为结尾的文件，以期可用分类模型进行推理。
+wav音频预处理：要想将接收到的wav文件送入ONNXRruntime推理机进行推理，还需对得到的wav音频文件进行图像预处理，具体的函数参考如下：
+def wav2tensor(file_path, backbone):
+    """
+    对wav音频文件进行数据预处理，返回推理机需要的数据类型
+    :param file_path: wav音频文件地址
+    :param backbone: 推理机网络模型选择
+    :return:推理机需要的数据类型
+    """
+    viridis_cmap = plt.get_cmap('viridis')
+    color_map = viridis_cmap.colors
+    color_map = (np.array(color_map) * 255).astype(np.uint8)
+    fs = 16000
+    if isinstance(file_path, str):
+        fs0, wave = wav.read(file_path)  # 读取原始采样频率和数据
+        if fs0 != fs:  # 如果采样频率不是16000则重采样
+            num = int(len(wave) * fs / fs0)  # 计算目标采样点数
+            wave = signal.resample(wave, num)  # 对数据进行重采样
+    spec = librosa.feature.melspectrogram(wave, sr=fs, n_fft=512)
+    spec = librosa.power_to_db(spec, ref=np.max)
+    spec_new = (((spec + 80) / 80) * 255).astype(np.uint8)
+    h, w = spec_new.shape
+    rgb_matrix = np.array([color_map[i] for i in spec_new.flatten()]).reshape(h, w, 3)
+    image = Image.fromarray(rgb_matrix.astype(np.uint8))
+    image = np.array(image)
+    dt = ImageData(image, backbone=backbone)
+    return dt.to_tensor()
+这是一个用于对音频文件进行预处理的函数。它的作用是将音频信号转换为可以被深度学习模型使用的张量类型。函数接受两个参数：file_path（音频文件路径）和
+backbone（推理机网络模型选择），并返回推理机所需的数据类型。具体步骤如下：
+从 matplotlib 库中获取 viridis 颜色映射，并转换为 numpy 数组类型。
+读取音频文件，如果采样频率不是16000则进行重采样。
+使用 librosa
+    库提取音频信号的梅尔频谱图特征，并将其转换为以分贝为单位的特征矩阵。
+对梅尔频谱图进行归一化处理，并将其转换为 RGB 图像。
+将 RGB 图像转换为 ImageData 类型，并传入 backbone
+    参数，得到最终的张量数据类型。
+四、项目实现
+第一步：使用MMEdu进行模型训练和模型转换
+使用平台提供的
+行空板上温州话识别
+和
+用卷积神经网络实现温州话语音分类的项目案例，进行数据收集，模型训练和转换的步骤，得到转换好的onnx模型下载保存至本地。
+第二步：上位机（行空板端）程序制作
+在这个系统中，行空板作为服务器（也称上位机）实时监听MQTT消息，将有效的语音转为图像后进行推理，再发送识别后的结果或者相应的命令。行空板除了能执行模型推理的工作外，其优势在于内置了SIoT服务器软件。SIoT是一款使用非常方便的MQTT服务器，不用设置就能直接使用。
+首先连接行空板并打开jupyter进行编程：
+通过USB串口连接行空板后，通过浏览器访问本地地址
+10.1.2.3，进入行空板编程的界面。如有问题可自行查找行空板说明教程。
+设计程序逻辑：
+根据项目整体设计，通过流程图描述想要在上运行的程序逻辑，以进一步的清晰自己的程序想要实现的功能。
+下面编写代码，将程序逻辑中描述的内容通过代码编程的形式实现出来。
+SIOT初始化：
+这段代码导入了一个名为"siot"的模块，该模块提供连接到物联网平台的功能。代码定义了几个变量，包括服务器的IP地址、客户端ID、发布和接收主题以及登录物联网平台的凭据。随后，创建了一个"iot"类的实例，其中传递了已定义的客户端ID和服务器IP地址，以及作为参数传递的登录凭据。调用此实例上的"connect()"方法，以建立与物联网平台的连接，然后调用"loop()"方法启动一个循环，监听来自订阅主题的传入消息。这段代码可以使用SIOT协议连接并与物联网平台通信。
+from siot import iot
+SERVER = "192.168.31.29"
+CLIENT_ID = "XEdu"
+IOT_pubTopic  = 'ailab/sensor1'
+IOT_recTopic  = 'ailab/sensor2'
+IOT_UserName ='siot'
+IOT_PassWord ='dfrobot'
+ONNX推理：
+函数的作用是：使用预先训练好的模型（sess）对输入的音频文件（file_name）进行推断，并输出推断结果和置信度。
+具体实现步骤如下：
+获取输入（input_name）和输出（out_name）Tensor的名称。
+将音频文件转换成Tensor格式（input_data）。
+运行模型（sess.run），得到输出Tensor的值（pred_onx）。
+从输出Tensor中找到最大值的索引（idx）。
+根据索引在标签列表（label）中找到标签（label[idx]），并将其显示在界面上（info_text）。
+计算置信度，并将其显示在界面上（info_text_1）。
+构建一个字符串，包含结果和置信度，并通过MQTT发布到云端（siot.publish）。
+```{=html}
+```
+    def onnx_infer(file_name):
+        input_name = sess.get_inputs()[0].name
+        out_name = sess.get_outputs()[0].name
+        input_data = wav2tensor(file_name)
+        pred_onx = sess.run([out_name], {input_name:input_data})
+        ort_output = pred_onx[0]
+        idx = np.argmax(ort_output, axis=1)[0]
+        info_text.config(x=60, y=100, text='结果：'+ label[idx])
+        info_text_1.config(x=60, y=140, text='置信度：' + str(round(ort_output[0][idx], 2)))
+        str_pub = '结果：'+ label[idx] + ' 置信度：' + str(round(ort_output[0][idx], 2))
+        siot.publish(IOT_pubTopic, str_pub)
+第三步：下位机（掌控板）程序制作
+掌控板作为终端（也可以称为下位机），主要任务是实时检测音频，并通过MQTT协议发送至行空板，并且实时监视服务器传送的消息，根据不同的指令执行相应的工作。我们设计返回的消息是一个列表，如"['sms','敲门']"表示有人敲门，"['sms','哭声']"表示有孩子在哭。然后根据不同的消息内容执行不同的工作。
+首先打开mPython连接掌控板进行编程：
+进入掌控板，通过USB串口进行设备的连接，成功连接后，mPython的中心会出现绿色圆圈，并显示已连接。如有问题可自行查找mPython和掌控板相关说明文档。
+设计程序逻辑：
+根据项目整体设计，通过流程图描述想要在掌控板上运行的程序逻辑，以进一步的清晰自己的程序想要实现的功能。
+下面编写代码，将程序逻辑中描述的内容通过代码编程的形式实现出来。
+启动并配置网络：
+这段代码导入network模块，进行wifi配置，目的是为了掌控板和行空板保持在同一局域网中，可以通过私网地址进行SIOT消息通信。
+import network
+my_wifi = wifi()
+my_wifi.connectWiFi("wifi名称", "wifi密码")
+SIoT初始化：
+这段代码导入了一个名为"siot"的模块，该模块提供连接到物联网平台的功能。代码定义了几个变量，包括服务器的IP地址、客户端ID、发布和接收主题以及登录物联网平台的凭据。随后，创建了一个"iot"类的实例，其中传递了已定义的客户端ID和服务器IP地址，以及作为参数传递的登录凭据。调用此实例上的"connect()"方法，以建立与物联网平台的连接，然后调用"loop()"方法启动一个循环，监听来自订阅主题的传入消息。这段代码可以使用SIOT协议连接并与物联网平台通信。
+from siot import iot
+SERVER = "192.168.31.29"
+CLIENT_ID = "XEdu"
+IOT_pubTopic  = 'ailab/sensor1'
+IOT_recTopic  = 'ailab/sensor2'
+IOT_UserName ='siot'
+IOT_PassWord ='dfrobot'
+界面UI：
+掌控板内置传统的OLED屏幕，可通过mPython内置的oled实例对掌控板的界面UI进行绘制，绘制的理念是简单化，传递程序流运行的整个流程，部分代码如下所示：
+oled.fill(0)
+oled.DispChar(str('语音识别：SIOT模式'), 0, 0, 1)
+oled.DispChar(str('按下 A键 开始监听音频'), 0, 16, 1)
+oled.show()
+oled.fill(0)：将屏幕背景填充为黑色，数字0代表黑色。
+oled.DispChar(str('语音识别：SIOT模式'), 0, 0,
+1)：在坐标为(0,0)的位置上显示字符串"语音识别：SIOT模式"，数字1代表字体大小。
+oled.DispChar(str('按下 A键 开始监听音频'), 0, 16,
+1)：在坐标为(0,16)的位置上显示字符串"按下 A键
+开始监听音频"，数字1代表字体大小。
+oled.show()：将以上修改后的内容显示在OLED屏幕上。
+按键触发：
+掌控板内置了A和B键以供用户触发，下面给的示例主要是对Micro:bit上的A按钮进行操作的。参考代码如下所示：
+def on_button_a_pressed(_):
+    pass
+button_a.event_pressed = on_button_a_pressed
+def
+on_button_a_pressed()：定义了一个名为on_button_a_pressed的函数，当A按钮被按下时会执行其中的代码。这个函数接收一个参数""，但实际上并没有用到这个参数，所以在函数体内部使用了关键词"pass"表示什么也不做（因为这段代码只是个示例\~）。
+button_a.event_pressed =
+on_button_a_pressed：将on_button_a_pressed函数赋值给button_a的event_pressed属性，意味着当A按钮被按下时会触发该属性中存储的函数（即on_button_a_pressed函数）。
+效果演示
+
+项目：让行空板变身为智能音箱
+一、问题的提出
+随着人工智能AI技术的发展，我们可以在很多科创项目中看见使用AI视觉技术实现物体的识别。例如我们之前的文章中就设计了一个“智能稻草人”的科创项目。同时AI技术也可以应用在语音方面，例如家用智能音箱就是通过AI技术对普通话进行识别。但是，目前智能音箱对还不支持方言的识别，因此我们准备设计一个支持方言识别的智能音箱，让不会说普通话的弱势群体也能享受AI的便利。
+首先，我们需要一个本地方言的一个数据集，可以在当地图书馆语音库中寻找，同时也能自己录音补充数据集，对原始音频处理后，再通过训练模型，并调整超参数，最终得到一个性能优异的模型。
+最后我们需要部署该AI模型，综合考虑开源硬件的性能与价格，我们选择行空板作为开源硬件，行空板自带麦克风看，可采集音频，在由部署在行空板上的AI模型完成音频信号的推理，最终采取相应智能操作。
+二、可行性分析
+1 语音数据集
+针对深度学习，数据集是无法避开的话题。首先可以先查找当地图书馆查找本地方言语音库；其次可以自己录音当地方言作为数据集；最后我们使用预训练的模型来迁移学习，仅用少量数据集实现高性能的语音识别。我们最使用的数据集分为训练集和测试集两部分，训练集原本220句音频文件，通过SpecAugment的方法进行数据集增强，得到1520个训练数据。测试集增强后共有520个测试数据。
+2 网络模型的输入
+语音的原始音频信号是一维信号，若使用其原始音频信号作为网络输入，信号长度较长，同时使用该输入对应的网络模型大小也会很大。若可以将一维信号变成类似于图像的二维信号，那么不仅可以使用各种轻量型卷积神经网络，也可以使用各种预训练ImageNet大规模数据集的模型。短时傅里叶变换(short-time Fourier txransform, STFT)就是这样一种方法，STFT可以将一维信号变为二维信号，该二维信号叫做时频谱图，横坐标为时间，纵坐标为频率，颜色深度为对应时间和对应频率的大小，变换前后的信号如下图所示。最终此基础上使用图像分类的方法完成语音识别。
+图1 变换前后信号
+3 AI模型的部署
+在离线状态下利用MMEdu训练一个高性能的轻量级模型，再使用行空板，完成一个智能方言小助手的项目，并对不同的方言语音任务做出智能输出。其工作流程图如图2：
+图2 智能方言小助手工作流程图
+三、网络搭建和模型训练
+1 网络搭建
+目前网络上的模型十分之多，在Resnet18，shufflenetv2，mobilenetv3中做测试，最终选择Resnet18作为最终模型，使用Resnet18有以下原因：
+高精度：ResNet18 以其在图像分类任务上的高精度而著称，对于时频谱图的分类ResNet18同样适用。
+模型大小合适：与其他卷积神经网络CNN 相比，ResNet18 模型适中，推理速度较快，这使得它的训练和部署效率更高。
+可迁移学习：由于 ResNet18 已经在大型图像数据集上进行了训练，因此可以将其用作迁移学习的起点。 我们仅仅需要在自己的数据集上对其进行微调，以提高其在特定任务上的性能
+易用性：ResNet18 在许多流行的深度学习框架中实现，MMEdu中同样也有ResNet18，便于我们集成到自己的项目中。
+2 模型训练
+完成完整的网络模型训练包括如下步骤（图3）：
+收集与数据集。 数据集包含大量打上标签的数据。
+预处理数据集中的数据。 包括将大小调整为一致大小和对数据进行归一化等步骤。
+下载预训练模型，使用预训练的ResNet18模型作为迁移学习模型的起点。
+使用训练集数训练，迁移学习ResNet18模型。
+在测试集中评估迁移学习模型的性能，确定模型对以前未见过的数据进行分类的能力。
+如有必要，可通过调整其超参数、添加或删除网络层来进一步提高模型性能。
+图3 模型训练流程图
+使用MMEdu可简化模型训练的步骤，仅需几行代码即可完成预训练的ResNet18网络的迁移学习。代码如下：
+```Python
+https://download.pytorch.org/models/resnet18-5c106cde.pth   本地址下载预训练的ResNet18模型 下载好的文件应该叫做 resnet18-5c106cde.pth 的pth文件
+导入MMEdu
+from MMEdu import MMClassification as cls
+模型实例化
+model = cls(backbone='ResNet18')
+指定输出类别数量，假设是6类
+model.num_classes = 6
+指定数据集的路径 path ='...'改为自己数据集的路径
+model.load_dataset(path='...')
+指定保存模型配置文件和权重文件的路径 ='...' 改为自己想保存的路径
+model.save_fold = '...'
+模型训练，训练完自动保存，checkpoint后面接上resnet18-5c106cde.pth的路径
+model.train(epochs=5, validate=True, checkpoint='...')
+```
+完成训练后，我们导出为onnx格式模型，便于后续行空板上模型的部署。
+参考代码如下：
+```Python
+首先安装模型转换必要库
+!pip install onnx
+!pip install onnxruntime
+!pip install onnxsim
+MMEdu支持模型转换为onnx
+from MMEdu import MMClassification as cls
+模型实例化
+model = cls('ResNet18')
+类别确定
+model.num_classes = 2
+将torch模型转换为ONNX
+model.convert(checkpoint = "ResNet18.pth",out_file="ResNet18.onnx")
+```
+四、在行空板上部署AI模型
+1 推理环境的安装
+我们通常在计算能力较强的电脑上对模型进行训练，但是行空板上的计算能力是不及电脑的，因此在行空板上部署AI模型，需要运行转换后的onnx模型，并且我们针对的是语音任务，因此我们需要安装一些额外的python库：librosa，pyaudio，onnxruntime。前两个针对音频信号处理，最后一个用于运作转换后的模型。
+可使用pip安装：
+Python
+!pip install librosa
+!pip install pyaudio
+!pip install onnxruntime
+2 代码范例
+安装相应库后，我们就可以用行空板做一个”方言识别助手“的小程序，主要代码如下：
+暂时无法在飞书文档外展示此内容
+项目相关文件可在以下网址找到：https://www.openinnolab.org.cn/pjlab/project?id=63b7c66e5e089d71e61d19a0&sc=635638d69ed68060c638f979#public
+其结果如下图所示：
+五、总结
+我们使用行空板开发出了一个方言识别的小助手。首先针对数据集，我们上网查找本地方言语音库，并自己手动录制本地方言；其次对于语音信号，我们采用了STFT的方法将一维的时序信号变为了二维的图像信号；再其次，我们选择了预训练的ResNet18的模型，并在方言语音数据集中进行微调，得到高性能模型，并导出为ONNX格式；最后将ONNX格式模型部署在行空板上，并安装对应python库，最终实现离线的方言语音识别小助手。更多模型转换和部署的内容详见AI模型部署部分。
+本项目文档已发表于《中国信息技术教育》2023年第一期。
+参考文献：
+[1]谢作如,胡君豪.让行空板变身为能识别方言的智能音箱[J].中国信息技术教育,2023(01):93-95.
+
+项目：电路符号识别小助手
+敬请期待。
+
+项目：设计“石头剪刀布”陪玩机器人
+敬请期待。
+

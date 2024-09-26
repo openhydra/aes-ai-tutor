@@ -1,0 +1,1435 @@
+附录
+1. 使用add()搭建网络模型详细介绍
+使用BaseNN可以轻易地创建深度学习模型。不同类型的神经网络适用于不同类型的问题，比如CNN通常用于处理图像问题，RNN通常用于处理序列问题，全连接神经网络可以应用于各种问题。
+添加层的方法为add(layer=None, activation=None, optimizer=None, **kw)。
+参数说明:
+layer：层的类型，可选值包括conv2d, conv1d, maxpool, avgpool, linear, lstm,dropout，res_block，Res_Block，Res_Bottleneck等。
+activation：激活函数类型，可选值包括ReLU，Softmax，tanh，sigmoid，leakyrelu。
+optimizer：为优化器类型，默认值为Adam，可选值包括SGD，Adam，Adagrad，ASGD。
+kw：关键字参数，包括与size相关的各种参数，常用的如size=(x,y)，x为输入维度，y为输出维度；
+  kernel_size=(a,b)， (a,b)表示核的尺寸。
+以下具体讲述各种层：
+conv1d: 卷积层（一维），需给定size（size=(输入特征数, 输出特征数)），卷积核尺寸kernel_size。也可额外设置拓展参数步长stride（默认为1），填充padding（默认为0）。
+conv2d：卷积层（二维），需给定size（size=(输入特征数, 输出特征数)），卷积核尺寸kernel_size。也可额外设置拓展参数步长stride（默认为1），填充padding（默认为0）。
+maxpool：最大池化层，需给定卷积核尺寸kernel_size。
+avgpool：平均池化层，需给定卷积核尺寸kernel_size。
+linear：线性层，需给定size。
+mobilenet：MobileNet网络层。
+mobilenet_backbone：MobileNet主干网络，一般用于分层搭建MoblileNet网络。通过MobileNet Backbone处理后，任意维度的输入都会得到一个固定维度（1280）的输出。
+Res_Block：残差基础模块，需给定size（size=(输入特征数, 输出特征数)），也可额外设置拓展参数num_blocks（默认为1），步长stride（默认为1）。
+Res_Bottleneck：残差瓶颈模块，需给定size（size=(输入特征数, 输出特征数)），也可额外设置拓展参数num_blocks，步长stride（默认为1）。
+lstm：一种特殊的RNN（Recurrent Neural Network，循环神经网络）层，需给定size，num_layers。
+dropout：随机失活层，需给定p（概率）。作用为随机关闭一些神经元，避免过拟合。其中参数p表示关闭神经元的比例，比如此处
+  p=0.2
+  表示有随机20%的神经元会被关闭。这种网络层是为了优化效果，避免过拟合而加入的，不是必需的，因此可以尝试修改p的值甚至删掉这个层观察比较效果差距。
+batchnorm1d：数据维度处理层，对一维数据做归一化。需传入size，表示输入数据的维度（注意和上一层的输出以及下一层的输入一致即可）。这种网络层是也为了优化效果而加入的，不是必需的，没有这个层也可以正常训练，但由于去掉这个网络层后效果下降的会非常明显，所以不建议删掉这个层。
+下面为您具体展示如何搭建模型，以全连接神经网络结构、卷积神经网络结构、循环神经网络结构等为例为您讲解。
+搭建全连接神经网络结构
+以一个简单的全连接神经网络结构为例，注释标明了数据经过各层的尺寸变化。
+```
+输入: [120,4]
+model.add(layer='linear',size=(4, 10),activation='relu') # [120, 10]
+model.add(layer='linear',size=(10, 5), activation='relu') # [120, 5]
+model.add(layer='linear', size=(5, 3), activation='softmax') # [120, 3]
+```
+这段代码是在构建一个简单的神经网络模型，其中包含了三个线性层（也称为全连接层），每个层后面都有一个激活函数。输入数据的维度是120行4列的鸢尾花数据集，添加了三层线性层，最后一个线性层输出为3与数据集的类别数一致。输入维度为4，输出维度为3，隐藏层数量为2。
+参考项目：用BaseNN库搭建全连接神经网络训练IRIS鸢尾花分类模型
+搭建卷积神经网络结构
+首先以一个简单的卷积神经网络LeNet结构为例，注释标明了数据经过各层的尺寸变化。
+``` python
+输入: [100,1,20,20]
+model.add('conv2d', size=(1, 3),kernel_size=(3, 3), activation='relu') # [100, 3, 18, 18]
+model.add('maxpool', kernel_size=(2,2)) # [100, 3, 9, 9]
+model.add('conv2d', size=(3, 10), kernel_size=(3, 3), activation='relu') # [100, 10, 7, 7]
+model.add('avgpool', kernel_size=(2,2)) # [100, 10, 3, 3]
+model.add('linear', size=(90, 10), activation='relu') # [100, 10]
+model.add('linear', size=(10, 2), activation='softmax') # [100,2]
+model.add(optimizer='SGD') # 设定优化器
+```
+以上代码注释中数字代表含义说明：
+以[100, 3, 18, 18]为例 ，其对应含义为 [图像数量, 通道数, 图像维度, 图像维度]。
+这里我们讨论简单卷积，卷积前后数据尺寸的变化可以利用以下公式解决：
+N = W - F + 1 ，其中N表示输出大小，F表示卷积核大小，W表示输入大小。（这里输入、输出和卷积核均为正方形）
+由于是正方形，池化操作后数据尺寸变化可以利用以下公式得出：
+N = W/P ，其中P表示池化层的卷积核大小。
+从参数kernel_size=(3,3)可以得到卷积核大小为3，输入大小为20，根据公式20-3+1=18。
+根据参数size=(1,3)得出输入为1通道，输出为3通道。
+经过kernel_size=(2,2)的最大池化层后，根据公式18/2=9，得到输出数据尺寸为9x9大小。
+最后，由于线性层（linear）是一维的，因此二维数据在输入前要进行展平（flatten），将二维展平为1维。
+在以上代码中，输入linear层前，一张图像有10通道，每个通道的图像大小为3x3，因此展平后有10x3x3 = 90，这就是为什么要设置linear层size=(90,10)中，输入维度为90。
+参考项目：用卷积神经网络实现MNIST手写体数字分类
+同时，使用BaseNN也能完成一些相对复杂的神经网络的搭建，如MobileNet，ResNet等MMEdu可以直接调用的SOTA模型，同样也是支持的。
+搭建MobileNet网络：
+以训练猫狗二分类数据集为例，如下是搭建MobileNet网络训练猫狗识别模型的示例代码。
+```
+from BaseNN import nn
+model = nn()
+model.load_img_data('CatsDogs/training_set', batch_size=32,shuffle=True,transform={'Resize':[32,32]})
+搭建网络
+model.add('mobilenet_backbone') # MobileNet主干网络
+model.add('Linear', size=(1280,1000), activation='relu')
+model.add('Dropout', p=0.2)
+model.add('Linear', size=(1000,2),activation='Softmax')
+model.add(optimmizer='Adam')
+model.save_fold = 'mobilenet_ckpt'
+model.train(lr=1e-3, epochs=20,metrics=['acc']) # 模型训练
+```
+注：搭建MobileNet网络支持输入任意大小的图像，推理时也无需调整图片尺寸，但是训练时数据集中所有图像大小必须一致，因此载入数据时还是做了图片尺寸的统一调整，如图片数据集的尺寸本身就是一致的，则无需调整。
+参考项目：用BaseNN搭建MobileNet网络实现猫狗分类模型训练
+无论输入图像的尺寸如何，通过MobileNet Backbone处理后，都会得到一个固定维度（1280）的输出，利用此能力，我们可利用MobileNet Backbone训练一个图像解码器，参考代码如下。
+```
+from BaseNN import nn
+声明模型
+model = nn()
+载入数据
+model.load_img_data('CatsDogs (1)/CatsDogs/training_set', batch_size=1000,transform={'Resize':(64,64)}) 
+搭建网络
+model.add('mobilenet_backbone') # MobileNet主干网络
+model.add('Linear', size=(1280,1000), activation='relu') 
+model.add(optimizer='Adam')
+model.save_fold = 'mobilenet_ckpt'
+model.train(lr=1e-3, epochs=30) # 模型训练
+```
+使用模型进行图像编码：
+```
+模型推理
+dog_embedding = model.inference(checkpoint='basenn.pth', data='CatsDogs/dog1.jpg')
+print(dog_embedding)
+```
+上述代码输出的应是形状为(1, 1280)的向量，这样利用已训练的图像解码器，可以实现将任意尺寸的图像转换为1280维的embedding向量（取决于MobileNet Backbone层后加的全连接层的输出维度）。这对于图像特征提取和进一步的分析或应用非常有用。比如可以借助XEdu.utils中的get_similarity函数比较两个embedding序列的相似度。
+参考项目：用BaseNN搭建MobileNet网络训练图像解码器
+搭建ResNet网络：
+如需搭建ResNet首先需在卷积层新增两个参数的设置，分别是步长stride和填充padding，同时增加残差模块的设置。ResNet系列网络结构如下所示。
+以ResNet18为例，我们看一下ResNet18的网络结构。
+搭建一个ResNet18的示例代码如下（输入的是包含32张224×224尺寸的手写数字图片）：
+```python
+model = nn('cls')
+model.load_img_data('mnist/training_set',batch_size=32,num_workers=1) # (32,3,224,224)
+model.add('Conv2D', size=(3, 64), kernel_size=(7, 7),stride=2,padding=3, activation='ReLU') #(32,64,112,112)
+model.add('BatchNorm2d', size=64) # (32,64,112,112)
+model.add('MaxPool', kernel_size=(3,3),stride=2,padding=1) # (32,64,56,56)
+model.add('Res_Block', size=(64, 64), num_blocks=2,stride=1) # (32,64,56,56)
+model.add('Res_Block', size=(64, 128), num_blocks=2,stride=2) # (32,128,28,28)
+model.add('Res_Block', size=(128, 256), num_blocks=2,stride=2) # (32,256,14,14)
+model.add('Res_Block', size=(256, 512), num_blocks=2,stride=2) # (32,512,7,7)
+model.add('AvgPool', kernel_size=(7,7)) # (32,512)
+model.add('linear', size=(512, 10), activation='Softmax') # (32,10)
+```
+注：注释表示[图像数量, 通道数, 图像维度, 图像维度]，加入stride和padding设置后，尺寸计算公式是：N = （W-F+2P)/S+1，前文提到的N = W - F + 1 其实是P取默认值0，S取默认值1的情况。
+另外针对ResNet18其实还有一种搭建方式，那就是不设置num_blocks（默认为1）。
+```python
+model = nn('cls')
+model.load_img_data('mnist/training_set',batch_size=32,num_workers=1) # (32,3,224,224)
+model.add('Conv2D', size=(3, 64), kernel_size=(7, 7),stride=2,padding=3, activation='ReLU') #(32,64,112,112)
+model.add('BatchNorm2d', size=64) # (32,64,112,112)
+model.add('MaxPool', kernel_size=(3,3),stride=2,padding=1) # (32,64,56,56)
+拆开实现：4->8
+model.add('Res_Block', size=(64, 64), stride=1) # (32,64,56,56)
+model.add('Res_Block', size=(64, 64), stride=1) # (32,64,56,56)
+model.add('Res_Block', size=(64, 128), stride=2) # (32,128,28,28)
+model.add('Res_Block', size=(128, 128), stride=1) # (32,128,28,28)
+model.add('Res_Block', size=(128, 256), stride=2) # (32,256,14,14)
+model.add('Res_Block', size=(256, 256), stride=1) # (32,256,14,14)
+model.add('Res_Block', size=(256, 512), stride=2) # (32,512,7,7)
+model.add('Res_Block', size=(512, 512), stride=1) # (32,512,7,7)
+model.add('AvgPool', kernel_size=(7,7)) # (32,512)
+model.add('linear', size=(512, 10), activation='Softmax') # (32,10)
+```
+设定num_blocks和多个块分别写的等价情况：
+```
+示例
+model.add('Res_Block', size=(64, 64), num_blocks=2,stride=1)
+等价方式
+model.add('Res_Block', size=(64, 64), stride=1)
+model.add('Res_Block', size=(64, 64), stride=1)
+```
+掌握了ResNet18的搭建，那么其他ResNet系列网络的搭建只需参照上文的ResNet各网络结构图即可，如需搭建ResNet34就是把中间四层换成[3,4,6,3]，依次类推。
+参考项目：用BaseNN搭建ResNet18网络实现MNIST手写体数字分类
+如您仔细观察ResNet各网络结构图，会发现ResNet50的中间四层也是[3,4,6,3]，但是搭建代码会稍显不同，不难发现>=50后中间层的残差模块不一样，使用bottleneck而非basicblock，使用BaseNN搭建也非常方便，此处为您提供搭建ResNet50的示例代码：
+```python
+model = nn('cls')
+model.load_img_data('mnist/training_set',batch_size=32,num_workers=1) # (32,3,224,224)
+model.add('Conv2D', size=(3, 64), kernel_size=(7, 7),stride=2,padding=3, activation='ReLU') #(32,64,112,112)
+model.add('BatchNorm2d', size=64) # (32,64,112,112)
+model.add('MaxPool', kernel_size=(3,3),stride=2,padding=1) # (32,64,56,56)
+model.add('Res_Bottleneck', size=(64, 64), num_blocks=3,stride=1) # (32,64,56,56)
+model.add('Res_Bottleneck', size=(256, 128), num_blocks=4,stride=2) # (32,256,28,28)
+model.add('Res_Bottleneck', size=(512, 256), num_blocks=6,stride=2) # (32,256,14,14)
+model.add('Res_Bottleneck', size=(1024, 512), num_blocks=3,stride=2) # (32,512,7,7)
+model.add('AvgPool', kernel_size=(7,7)) # (32,2048)
+model.add('linear', size=(2048, 10), activation='Softmax') # (32,10)
+```
+注：bottleneck输出通道数是输入的四倍，因此注意size的区别。这个四倍是1 1，3 3，1 *1三次矩阵乘法导致的，有点难理解，而且bottleneck跑着也慢，建议文档里可以提有这个功能，但是示例项目不要用bottleneck就用basicblock。更多ResNet网络的介绍详见深度学习知识库。
+搭建循环神经网络结构
+循环神经网络是一类以序列数据为输入，在序列的演进方向进行递归且所有节点（循环单元）按链式连接的递归神经网络。RNN在自然语言处理问题中有得到应用，也被用于与自然语言处理有关的异常值检测问题，例如社交网络中虚假信息/账号的检测。RNN与CNN卷积神经网络相结合的系统可被应用于在计算机视觉问题，例如在字符识别中，有研究使用卷积神经网络对包含字符的图像进行特征提取，并将特征输入LSTM进行序列标注。
+以lstm为例进行详细说明：lstm（Long Short-Term Memory，长短时记忆）是一种特殊的RNN（Recurrent Neural Network，循环神经网络）模型，主要用于处理序列数据。lstm模型在自然语言处理、语音识别、时间序列预测等任务中被广泛应用，特别是在需要处理长序列数据时，lstm模型可以更好地捕捉序列中的长程依赖关系。
+python
+model.add('lstm',size=(128,256),num_layers=2)
+size中的的两个值：第一个为嵌入层维度(embedding_dim)，即文本转化为词向量后的向量维度。第二个为隐藏层维度(hidden_dim)，即lstm隐藏层中神经元数量。
+num_layers：循环神经网络的层数。一般1\~5，常用2、3层，太多层会大幅度影响训练速度和收敛难度。
+以上仅是基本的模型架构。在实际使用中，可能需要调整模型的层数、节点数、激活函数等参数以达到最佳效果。
+简便方式：
+使用BaseNN做时序动作分类任务时，我们特意准备了一种简化模型搭建方法。
+model.add('action_model',size=(132,256))
+model.add('linear',  size=(256, 64))
+model.add('linear',  size=(64, 3))
+model.add(activation='Softmax')
+此方法将搭建lstm、数据维度处理层等合并为一个简单的action_model层，当然了，也有坏处那就是是不太灵活，仅供参考。
+搭建RNN模型的一般方式：
+以下方式与极简方式的代码的功能完全一致，展示了搭建RNN神经网络并进行模型训练的的一般流程：
+``` python
+model.add('lstm', size=(132,128))
+model.add('dropout',p=0.2)
+model.add('lstm', size=(128,256))
+model.add('dropout',p=0.2)
+model.add('unsqueeze')
+model.add('lstm', size=(256,256))
+model.add('squeeze')
+model.add('batchNorm1d', size=256)
+model.add('linear',  size=(256, 256))
+model.add('linear',  size=(256, 128))
+model.add('linear',  size=(128, 64))
+model.add('linear',  size=(64, 3))
+model.add(activation='softmax')
+```
+在搭建RNN时，一般第一层需要设置为lstm层，需要注意的是size=(132,128)表示该层输入维度为132，输出维度为128，输入维度应与数据集维度相同。
+Dropout层的作用为随机关闭一些神经元，避免过拟合。其中参数p表示关闭神经元的比例，比如此处
+p=0.2
+表示有随机20%的神经元会被关闭。这种网络层是为了优化效果，避免过拟合而加入的，不是必需的，因此可以尝试修改p的值甚至删掉这个层观察比较效果差距。
+squeeze与unsqueeze层两个神经网络层并不常见，其作用为对数据的升降维度进行处理。squeeze的操作为压缩维度，unsqueeze的操作为扩充维度。这种网络层是为了确保数据在层间正常流动，是必需的，如果想要自行调整，可能需要对数据经过每一层之后的维度变化有充分了解，在此之前，保持原样即可。
+Batchnorm1d的作用是对一维数据做归一化。参数中size值表示输入数据的维度（注意和上一层的输出以及下一层的输入一致即可）。这种网络层是也为了优化效果而加入的，不是必需的，没有这个层也可以正常训练，但由于去掉这个网络层后效果下降的会非常明显，所以不建议删掉这个层。
+参数layer='linear'表示添加的层是线性层，size=(256,256)表示该层输入维度为256，输出维度为256，activation='Softmax'表示使用softmax激活函数。
+参考项目：姿态识别进阶-循环神经网络
+搭建扩散模型
+扩散模型就是一个先不断破坏（添加噪声），再逐步重建（去除噪声）的迭代生成的过程。扩散模型由正向过程和反向过程这两部分组成。
+```
+定义模型结构：扩散模型
+model.add('diffusion_model',img_size=28,timestep=500)
+```
+使用方法：
+1.扩散模型的正向过程
+在正向过程中，输入图像会不断混入噪声。在真实图像x0上加噪会生成图像x1，经过第t步加噪后，会生成图像xt，... ... 直至第T步的加噪操作后，图像会变成一幅完全没有任何含义的纯噪声图像xT。T是预先定义好的总的加噪步数，可以设置为500，1000等。T值越大，越消耗算力。在正向过程中，从前到后每一步加的噪声是不同的。开始时，清晰的原图上只需要稍微加点噪声，就能明显看出混入了噪点。随着加噪步数的增加，为了让每次图像都有显著的变化，噪声加的会越来越多，越来越明显。
+```
+导入依赖库
+from BaseNN import nn
+声明模型
+model = nn()
+加载数据集
+model.load_img_data('./mnist/training_set', batch_size=64)
+定义模型结构：扩散模型
+model.add('diffusion_model',img_size=28,timestep=500)
+指定优化器（可省略）
+model.add(optimizer='SGD')
+正向加噪过程
+model.noisy(r'./mnist/training_set/3/0.jpg', timestep=500)
+```
+2.扩散模型的训练
+为从噪声图像中还原生成新的图像，需要训练一个神经网络来预测正向所加的噪声。扩散模型训练的目标，就是对[1,T]范围之间的任意步数的噪声图像，都能预测出其加入的噪声，从而恢复出上一时刻的图像，直至预测出第0时刻的图像，也就是生成新的图像。
+```
+训练模型
+model.train(epochs=10)
+```
+3.扩散模型的反向过程【可以理解为推理】
+经过训练后，神经网络可以预测每一步加入图像中的噪声，然后从图像中去除噪声，逐渐生成全新的图像。训练后的扩散模型学到了训练数据集的特征分布，并不是记住了数据集中的图像再进行复制生成，因此它会生成与数据集特征相似的全新图像。
+```
+反向去噪过程
+generated_imgs = model.inference(num=64, return_all_timesteps=True)
+```
+拓展——搭建更复杂的网络结构
+如果对pytorch比较熟悉，想要自行添加比较复杂的模块，也可以自定义（BaseNN兼容pytorch搭的网络结构），例如，搭建一个与上述动作识别网络一致的自定义模块：
+``` python
+import torch class LSTM_model(torch.nn.Module): 
+   def init(self, actions):
+      super(LSTM_model, self).init() self.actions = actions
+      self.lstm1 = torch.nn.LSTM(132, 128, batch_first=True, bidirectional=False)
+      self.dropout1 = torch.nn.Dropout(0.2)
+      self.lstm2 = torch.nn.LSTM(128, 256, batch_first=True, bidirectional=False)
+      self.dropout2 = torch.nn.Dropout(0.2)
+      self.lstm3 = torch.nn.LSTM(256, 256, batch_first=True, bidirectional=False)
+      self.bn = torch.nn.BatchNorm1d(256)
+      self.dense1 = torch.nn.linear(256, 256)
+      self.dense2 = torch.nn.linear(256, 128)
+      self.dense3 = torch.nn.linear(128, 64)
+      self.dense4 = torch.nn.linear(64, actions.shape[0])
+      self.softmax = torch.nn.Softmax(dim=1)
+def forward(self, x):
+      x, _ = self.lstm1(x)
+      x = self.dropout1(x)
+      x, _ = self.lstm2(x)
+      x = self.dropout2(x)
+      x, _ = self.lstm3(x[:, -1, :].unsqueeze(1))
+      x = self.bn(x.squeeze())
+      x = self.dense1(x)
+      x = self.dense2(x)
+      x = self.dense3(x)
+      x = self.dense4(x)
+      x = self.softmax(x)
+      return x
+   actions = np.array(["walking","boxing","handwaving"])
+   my_model = LSTM_model(actions)
+```
+创建好这样的自定义模块之后，就可以按照常规方法添加这个模型到basenn中了。
+python
+model.add(my_model)
+2. 支持的损失函数
+序号
+损失函数
+1
+nn.L1Loss
+2
+nn.MSELoss
+3
+nn.CrossEntropyLoss
+4
+nn.CTCLoss
+5
+nn.NLLLoss
+6
+nn.PoissonNLLLoss
+7
+nn.GaussianNLLLoss
+8
+nn.KLDivLoss
+9
+nn.BCELoss
+10
+nn.BCEWithLogitsLoss
+11
+nn.MarginRankingLoss
+12
+nn.HingeEmbeddingLoss
+13
+nn.MultiLabelMarginLoss
+14
+nn.HuberLoss
+15
+nn.SmoothL1Loss
+16
+nn.SoftMarginLoss
+17
+nn.MultiLabelSoftMarginLoss
+18
+nn.CosineEmbeddingLoss
+19
+nn.MultiMarginLoss
+20
+nn.TripletMarginLoss
+21
+nn.TripletMarginWithDistanceLoss
+3. RNN和CNN
+RNN（Recurrent Neural Network，循环神经网络）和CNN（Convolutional NeuralNetwork，卷积神经网络）是深度学习中两个非常重要的神经网络模型。
+RNN是一种用于处理序列数据的神经网络模型。它的特点是可以将前面的输入信息保存下来，并在后面的计算中进行利用，从而实现对序列数据的建模。RNN在自然语言处理、语音识别、股票预测等任务中广泛应用。RNN对具有序列特性的数据非常有效，它能挖掘数据中的时序信息以及语义信息。它有记忆功能，可以记住序列中前面的信息，并用这些信息影响后续的输出。这就像我们人类在阅读一段文字时，会记住前面的内容，以帮助理解后面的内容一样。
+一些常见的序列数据：
+文本数据：即人类的自然语言，一段话或一篇文章中的单词或字符序列，是符合某个逻辑或规则的字词拼凑排列起来的，这些规则包括词序、句法结构、语境等等。因此，文本数据具有序列特性，即前后元素之间存在某种联系或依赖关系。这种序列特性使得文本数据的处理和分析比较复杂。
+时间序列数据：股票价格、气温、交通流量等随时间变化的数据，随着时间的推移，会产生具有顺序的一系列数字，这些数字也是具有序列特性。
+语音数据：音频信号中的时域或频域特征序列，我们发出的声音，每一帧每一帧的衔接起来，才凑成了我们听到的话，这也具有序列特性。
+生物信息学数据：DNA或RNA序列、蛋白质序列等。
+符号序列：编码信息的二进制序列、信号编码序列等。
+在这些序列数据中，每个数据点（单词、股票价格、音频帧等）都与序列中的其他数据点密切相关，传统的RNN在处理长序列时会遇到一些问题，比如长期依赖问题和梯度消失问题。为了解决这些问题，研究者们提出了一些改进的RNN模型，如长短期记忆网络（LSTM）和门控循环单元（GRU）。
+CNN是一种用于处理图像和空间数据的神经网络模型。例如图片（可以看成是像素的网格）。CNN的核心概念是卷积层和池化层。卷积层通过滑动窗口（也叫做卷积核）在输入数据上进行卷积操作，能够自动学习并识别图像中的局部特征，比如线条、形状等。池化层则用于降低数据的维度，减少计算量。CNN的一个重要特性是它具有参数共享和平移不变性，这使得CNN非常适合处理图像数据。当然，CNN也被用于处理其他类型的数据，如文本和时间序列数据。它的主要特点是利用卷积操作提取图像中的特征，并通过池化操作减小特征图的大小，最终通过全连接层进行分类或回归。CNN在图像分类、目标检测、图像分割等任务中表现出色。
+简单来说，RNN适用于序列数据处理，而CNN适用于图像和空间数据处理。但实际上，它们也可以互相组合使用，例如在图像描述生成任务中，可以使用CNN提取图像特征，然后使用RNN生成对应的文字描述。使用BaseNN搭建RNN和CNN模型的方式详见add()详细介绍。
+4. 深度学习常见的数据类型
+图像数据：图像数据是深度学习应用中最常见的数据类型之一。图像数据通常表示为多维数组，每个数组元素代表一个像素的值。深度学习应用中常使用的图像数据格式包括JPEG、PNG、BMP等。
+文本数据：文本数据是指由字符组成的序列数据。在深度学习应用中，文本数据通常被表示为词向量或字符向量，用于输入到文本处理模型中。
+特征数据：特征数据指的是表示对象或事物的特征的数据，通常用于机器学习和数据挖掘。特征数据可以是数值型、离散型或者是二进制的，用于描述对象或事物的各种属性和特征。特征数据可以是手动设计的、自动提取的或者是混合的。在机器学习中，特征数据通常作为模型的输入，用于预测目标变量或者分类。
+
+BaseNN安装或下载
+你可以通过pip命令来安装BaseNN。
+pip install basenn 或 pip install BaseNN
+更新库文件：
+pip install --upgrade BaseNN
+可以在命令行输入BaseNN查看安装的路径，在安装路径内，可以查看提供的更多demo案例。
+BaseNN已经内置在XEdu的一键安装包中，解压后即可使用。
+如果在使用中出现类似报错：**AttributeError**: partially initialized module 'cv2' has no attribute 'gapi_wip_gst_GStreamerPipeline' (most likely due to a circular import) 
+可尝试通过运行pip install --upgrade opencv-python解决。
+库文件源代码可以从PyPi下载，选择tar.gz格式下载，可用常见解压软件查看源码。
+
+BaseNN功能详解
+BaseNN是什么？
+BaseNN是神经网络库，能够使用类似Keras却比Keras门槛更低的的语法搭建神经网络模型。可支持逐层搭建神经网络，深入探究网络原理。如果有如下需求，可以优先选择BaseNN：
+a）简易和快速地搭建神经网络
+b）支持搭建CNN和RNN，或二者的结合
+c）同时支持CPU和GPU
+文档涉及的部分代码见XEdu帮助文档配套项目集：https://www.openinnolab.org.cn/pjlab/project?id=64f54348e71e656a521b0cb5&sc=645caab8a8efa334b3f0eb24#public
+示例代码
+python
+model = nn('cls')
+train_path = '../../dataset/iris/iris_training.csv'
+model.load_tab_data(train_path, batch_size=120)
+model.add(layer='linear',size=(4, 10),activation='ReLU') 
+model.add(layer='linear',size=(10, 5), activation='ReLU') 
+model.add(layer='linear', size=(5, 3), activation='Softmax') 
+model.save_fold = './iris_ckpt'
+model.train(lr=0.01, epochs=500)
+解锁BaseNN基本使用方法
+0. 引入包
+python
+from BaseNN import nn
+1. 声明模型
+python
+model = nn('cls')
+可选参数：
+task：指定了这个模型要完成的任务，可选取值有：['reg','cls','gen']，
+回归任务：nn('reg')。
+分类任务：nn('cls')，当不指定时，task的默认值'cls'。
+生成任务：nn('gen')。
+2. 载入数据
+根据数据类型，可选择使用load_img_data、load_tab_data等（持续更新中）直接载入不同类型数据的函数，在这些函数中封装了读取数据并进行预处理的功能。下面分数据类型进行说明：
+针对图片文件夹类型的数据：
+直接指定图片文件夹路径，再使用load_img_data函数即可完成载入数据，对图片文件夹格式有一定要求：大文件夹下包含各个按类别命名的子文件夹。例如此处使用的是经过处理的经典的MNIST手写体数字图像数据集。
+python
+image_folder_data = '../../dataset/mnist/training_set'
+model.load_img_data(image_folder_data,color="grayscale",batch_size=1024)
+参数说明：
+train_val_ratio：0\~1之间的浮点数，表示训练集的占比，默认为1。eg，数据集共1万张，train_val_ratio=0.8，则8000张训练集，2000张验证集。若传入大于1或小于0的错误比例，则参数值无效，默认整个数据集都可用于训练。此参数可用于拆分数据集为训练集和验证集。
+color：设置为"grayscale"或"RGB"，表示图片的颜色空间或色彩模式，可以根据具体的需求来选择适合的模式。如果将color参数设置为"grayscale"，表示希望将图像转换为灰度图像，仅包含亮度信息。如果将color参数设置为"RGB"，表示希望保留图像的红、绿、蓝三个通道的颜色信息，得到彩色图像。
+batch_size：表示在一次训练中同时处理的样本数量。通常情况下，批量大小越大，模型的收敛速度越快，但内存和计算资源的需求也会相应增加。
+batch_model：是否按照minibatch的模式读取数据，若 False，则载入数据时读取全部图像，若 True，则载入数据时仅读取图像路径，训练时再读取对应batch的图像。默认为 False，Fasle要求内存大， 速度快，True则速度慢，要求内存小，如载入图像文件夹时出现内核中断，可增设batch_model=True。
+num_workers：线程数，决定了有多少个子线程被用于数据加载。子线程是并行运行的，可以同时处理多个数据批次。增加 num_workers 的数值时，可以加快数据批次的寻找速度，这通常会提高训练的速度，因为模型等待数据的时间减少了，但增大内存开销和CPU负荷。此参数用来控制数据加载过程中的线程数量。适当增加这个数值可以加速训练，但也要注意不要超出你的硬件限制。默认为0，一般而言设置num_workers最大为CPU核心数。
+classes：类别列表（列表）或字典，表示数据集中的label中存储的数组各个位置标签所代表的意义，一般适用于载入图片形式数据集训练图像分类模型。可以不传入，若不传入，则推理结果将会是认为结果的下标。若传入，则推理结果将自动转化为将原结果作为下标的数组中的对应内容。
+classes可传参数兼容列表，字典形式(以下三种形式均可)。
+python
+classes = ['cat','dog']
+classes = {0:'cat',1:'dog'}
+classes = {'cat':0, 'dog':1} # 与词表形式统一
+注意：索引是数值类型（int)，类别名称是字符串（str)，即哪怕类别名也是数字0,1,...字典的键和值也有区别，例如：
+```python
+正确示例
+classes = {0:'0',1:'1'} # 索引to类别
+classes = {'0':0, '1':1} # 类别to索引
+错误示例
+classes = {0:0,1:1} 
+classes = {'0':'0', '1':'1'} 
+```
+关于图片数据集预处理：
+载入图片数据前如需对图像数据集进行预处理，最常见的例如做尺寸调整，可先调用已经内置的torchvision对图片数据集进行预处理再载入模型进行训练，只需在load_img_data图片数据集时增加一个transform的参数。
+此处为对数据进行单个步骤的简单处理。
+python
+model.load_img_data('MNIST',transform={"Resize":(128,128)})
+若要对图片数据进行多次处理的复杂操作，可以采用如下代码，将多个处理方式设置入参数，在执行时这些操作也会被按顺序执行。
+python
+model.load_img_data('catdog',transform={"Resize":(128,128),"RandomResizedCrop":224,"RandomHorizontalFlip":0.5})
+方法说明: Resize:对图片尺寸进行调整。
+RandomResizedCrop:对图片尺寸进行随机缩放后裁剪为固定尺寸。
+RandomHorizontalFlip:依照某概率对图片进行水平翻转。
+支持的操作即为torchvision中的transforms包括的所有方式，如下表所列。
+类别
+转换名称
+函数
+设置示例
+裁剪
+随机裁剪
+RandomCrop
+(32, 32)
+裁剪
+中心裁剪
+CenterCrop
+(32, 32)
+裁剪
+随机长宽比裁剪
+RandomResizedCrop
+size=224, scale=(0.08, 1.0), ratio=(0.75, 1.33), interpolation=2
+裁剪
+上下左右中心裁剪
+FiveCrop
+(32, 32)
+裁剪
+上下左右中心裁剪后翻转
+TenCrop
+size=(32, 32), vertical_flip=False
+翻转和旋转
+依概率p水平翻转
+RandomHorizontalFlip
+0.5
+翻转和旋转
+依概率p垂直翻转
+RandomVerticalFlip
+0.5
+翻转和旋转
+随机旋转
+RandomRotation
+(0, 180)
+图像变换
+尺寸调整
+Resize
+(128, 128)
+图像变换
+标准化
+Normalize
+mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)
+图像变换
+转为tensor
+ToTensor
+无参数设置示例
+图像变换
+填充
+Pad
+4
+图像变换
+修改亮度、对比度和饱和度
+ColorJitter
+brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1
+图像变换
+转灰度图
+Grayscale
+1
+图像变换
+线性变换
+LinearTransformation
+transformation_matrix, mean_vector
+图像变换
+仿射变换
+RandomAffine
+degrees=30, translate=(0.1, 0.1), scale=(0.8, 1.2), shear=10
+图像变换
+依概率p转为灰度图
+RandomGrayscale
+0.1
+图像变换
+将数据转换为PILImage
+ToPILImage
+无参数设置示例
+图像变换
+自定义Lambda变换
+Lambda
+lambda x: x.div(255)
+针对特征表格类型的数据：
+指定表格路径，再使用load_tab_data函数即可完成载入数据，对表格的要求：csv格式，纵轴为样本，横轴为特征，第一行为表头，最后一列为标签，且要求数据类型为数值类型并无缺失值。例如此处我使用的是经过处理的经典的Iris鸢尾花数据集。
+python
+train_path = '../../dataset/iris/iris_training.csv'
+model.load_tab_data(train_path, batch_size=120)
+batch_size：表示在一次训练中同时处理的样本数量。通常情况下，批量大小越大，模型的收敛速度越快，但内存和计算资源的需求也会相应增加。
+num_workers：线程数，决定了有多少个子线程被用于数据加载。子线程是并行运行的，可以同时处理多个数据批次。增加 num_workers 的数值时，可以加快数据批次的寻找速度，这通常会提高训练的速度，因为模型等待数据的时间减少了，但增大内存开销和CPU负荷。此参数用来控制数据加载过程中的线程数量。适当增加这个数值可以加速训练，但也要注意不要超出你的硬件限制。默认为0，一般而言设置num_workers最大为CPU核心数。
+针对NPZ数据集类型的数据：
+指定NPZ数据集路径，再使用load_npz_data函数即可完成载入数据。NPZ格式，是numpy的一种压缩格式，对NPZ数据集的要求：npz格式(numpy zip)，其中至少应该拥有两个键，分别为data与label，其中data中存储的应为训练数据信息，label中存储的应为数据所对应的标签信息（应为数组形式）。
+详见案例：姿态识别进阶-循环神经网络
+python
+train_path = '../../dataset/dataset.npz'
+model.load_npz_data(train_path, batch_size=5000,classes=["walking","waving","stretching"])
+参数说明：
+batch_size：表示在一次训练中同时处理的样本数量。通常情况下，批量大小越大，模型的收敛速度越快，但内存和计算资源的需求也会相应增加。
+classes：表示数据集中的label中存储的数组各个位置标签所代表的意义。可以不传入，若不传入，则推理结果将会是认为结果的下标。若传入，则推理结果将自动转化为将原结果作为下标的数组中的对应内容。
+num_workers：指定线程数，决定了有多少个子线程被用于数据加载。子线程是并行运行的，可以同时处理多个数据批次。增加 num_workers 的数值时，可以加快数据批次的寻找速度，这通常会提高训练的速度，因为模型等待数据的时间减少了，但增大内存开销和CPU负荷。此参数用来控制数据加载过程中的线程数量。适当增加这个数值可以加速训练，但也要注意不要超出你的硬件限制。默认为0，一般而言设置num_workers最大为CPU核心数。
+小帖士（井号后面是运行结果）：
+```python
+import numpy as np
+data = np.load('dataset.npz')
+print(data)
+print(data['label'])  # 这是一个三分类标签数据，它是二维数据，每一条数据里面是三分类独热编码标签。
+array([[1, 0, 0],
+...,
+[0, 0, 1]])
+print(data['data']) # 这是一个高维数据，每一条数据对应一个标签，但是数据本身不是一维的，而是高纬的。
+array([[[ 4.60664570e-01,  2.78294533e-01, -3.56185764e-01, ...,
+9.21180844e-01,  1.94783360e-01,  9.93974388e-01],
+[ 4.62414086e-01,  2.83538818e-01, -3.53962898e-01, ...,
+9.16427970e-01,  1.96989119e-01,  9.91852582e-01],
+[ 4.63086247e-01,  2.80452102e-01, -3.24477255e-01, ...,
+9.19000983e-01,  1.50782943e-01,  9.93449986e-01],
+...,
+[ 4.34215039e-01,  4.27498937e-01,  3.03461671e-01, ...,
+8.96103501e-01, -4.72080037e-02,  9.73582983e-01]]])
+```
+len(data['data'])和len(data['label'])是相等的。
+对于案例《姿态识别进阶-循环神经网络》
+来说：data['label'].shape是(19, 3)，data['data'].shape是(19, 30, 132)。
+type(data['data'])的运行结果是numpy.ndarray，type(data['data'])的运行结果是numpy.ndarray。
+拓展------自行编写代码载入数据：
+如您想要尝试自行编写代码加载数据并做预处理，需生成NumPy数组格式的特征x 和标签y（不同的框架和模型可能对输入数据的格式有所要求有所不同，这是BaseNN的要求），载入时可使用如下代码，此方法比较灵活。
+python
+model.load_dataset(x, y)
+也支持设置线程数参数num_workers，此参数用来控制数据加载过程中的线程数量。适当增加这个数值可以加速训练，但也要注意不要超出你的硬件限制。默认为0，一般而言设置num_workers最大为CPU核心数。
+此处采用Iris鸢尾花数据集和MNIST手写体数字图像数据集作为示例。
+读取并载入csv格式鸢尾花数据集（鸢尾花数据集以鸢尾花的特征作为数据来源，数据集包含150条数据，有4维（花萼长度、宽度和花瓣长度、宽度），分为3类（setosa、versicolour、virginica），每类50条数据）：
+数据集共有5列，其中前四列为特征，第五列为鸢尾花的类别，即标签。
+``` python
+训练数据
+train_path = '../dataset/iris/iris_training.csv' 
+x = np.loadtxt(train_path, dtype=float, delimiter=',',skiprows=1,usecols=range(0,4)) # 读取前四列，特征
+y = np.loadtxt(train_path, dtype=int, delimiter=',',skiprows=1,usecols=4) # 读取第五列，标签
+测试数据
+test_path = '../dataset/iris/iris_test.csv'
+test_x = np.loadtxt(test_path, dtype=float, delimiter=',',skiprows=1,usecols=range(0,4)) # 读取前四列，特征
+test_y = np.loadtxt(test_path, dtype=int, delimiter=',',skiprows=1,usecols=4) # 读取第五列，标签
+将数据载入
+model.load_dataset(x, y)
+```
+上面这段代码使用了NumPy库加载和预处理Iris鸢尾花数据集。代码首先指定了训练数据集和测试数据集的路径，然后使用np.loadtxt函数从CSV文件中读取特征和标签数据，并存储在x和y变量中。测试数据也以相同的方式加载并存储在test_x和test_y变量中。最后，通过调用model.load_dataset(x, y)将数据集载入模型。
+读取并载入手写体图像数据集（数据集包含了0-9共10类手写数字图片，都是28x28大小的灰度图）：
+``` python
+定义读取训练数据的函数
+def read_data(path):
+    data = []
+    label = []
+    dir_list = os.listdir(path)
+# 将顺序读取的文件保存到该list中
+for item in dir_list:
+    tpath = os.path.join(path,item)
+    # print(tpath)
+    for i in os.listdir(tpath):
+        # print(item)
+        img = cv2.imread(os.path.join(tpath,i))
+        imGray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # print(img)
+        data.append(imGray)
+        label.append(int(item))
+x = np.array(data)
+y = np.array(label)
+x = np.expand_dims(x, axis=1)
+return x, y
+读取训练数据
+train_x, train_y = read_data('../dataset/mnist/training_set')
+载入数据
+model.load_dataset(train_x, train_y) 
+```
+上面这段代码中定义了一个名为read_data的函数，该函数用于从指定路径中读取MNIST训练数据。该函数首先遍历给定路径中的文件夹，然后读取每个文件夹中的图像数据，并将其转换为灰度图像。读取的图像数据被存储在data列表中，相应的标签存储在label列表中。最后，通过np.array将数据和标签转换为NumPy数组，并使用np.expand_dims函数在数据维度上进行扩展，以适应模型的输入要求。
+3. 搭建模型
+逐层添加，搭建起模型结构，支持CNN（卷积神经网络）和RNN（循环神经网络）。注释标明了数据经过各层的尺寸变化。在模型搭建中要特别注意数据经过各层的尺寸变化，以设置正确的size值。
+python
+model.add(layer='linear',size=(4, 10),activation='relu') # [120, 10]
+model.add(layer='linear',size=(10, 5), activation='relu') # [120, 5]
+model.add(layer='linear', size=(5, 3), activation='softmax') # [120, 3]
+以上使用add()方法添加层，参数layer='linear'表示添加的层是线性层，size=(4,10)表示该层输入维度为4，输出维度为10，activation='relu'表示使用relu激活函数。以上代码搭建的是一个输入维度为4，输出维度为3，隐藏层数量为2的全连接神经网络。如要搭建更加复杂的神经网络，可前往附录1了解更详细的add()方法使用，还呈现了搭建全连接神经网络结构、简单卷积神经网络LeNet结构，也呈现了与MMEdu内置的SOTA模型对应的MobileNet网络、ResNet等，以及循环神经网络、扩散模型等搭建说明。
+4. 模型训练
+模型训练可以采用以下函数，训练前需设置模型保存路径，训练时需设置lr、epochs等超参数。
+``` python
+设置模型保存的路径
+model.save_fold = 'checkpoints/irs_ckpt'
+模型训练
+model.train(lr=0.01, epochs=500)
+```
+参数lr为学习率，epochs为训练轮数。
+从训练类型的角度，可以分为正常训练和继续训练。
+使用model.save_fold设置模型保存的路径，模型权重文件格式为.pth文件格式。默认保存为保存路径下的命名为basenn.pth的文件，如需修改保存命名，可在train中加入一个新参数filename，设置方法为filename='XX.pth'。
+正常训练
+python
+model = nn('cls') 
+model.add(layer='linear',size=(4, 10),activation='relu') # [120, 10]
+model.add(layer='linear',size=(10, 5), activation='relu') # [120, 5]
+model.add(layer='linear', size=(5, 3), activation='softmax') # [120, 3]
+model.load_dataset(x, y)
+model.save_fold = 'checkpoints' # 指定模型保存路径
+model.train(lr=0.01, epochs=1000)
+model.save_fold表示训练出的模型文件保存的文件夹。
+继续训练
+python
+checkpoint = 'checkpoints/basenn.pth' # 指定已有模型的权重文件路径
+model.train(lr=0.01, epochs=1000, checkpoint=checkpoint)
+checkpoint为现有模型路径，当使用checkpoint参数时，模型基于一个已有的模型继续训练，不使用checkpoint参数时，模型从零开始训练。
+训练篇拓展------分数据类型看训练代码
+针对不同类型的数据类型，载入数据、搭建模型和模型训练的代码会略有不同。深度学习常见的数据类型介绍详见附录4。
+第一种：图片文件夹类型
+可直接指定图片文件夹，同时针对图片数据可增加classes参数设置（推理时会输出预测的类别名称，如不设置此参数则只输出类别标签），参考代码如下：
+python
+model = nn('cls')
+model.load_img_data("./mnist/training_set",color="grayscale",batch_size=32,classes=classes)
+model.add('Conv2D', size=(1, 6),kernel_size=( 5, 5), activation='ReLU') 
+model.add('AvgPool', kernel_size=(2,2)) 
+model.add('Conv2D', size=(6, 16), kernel_size=(5, 5), activation='ReLU') 
+model.add('AvgPool', kernel_size=(2,2)) 
+model.add('linear', size=(256, 120), activation='ReLU')  
+model.add('linear', size=(120, 84), activation='ReLU') 
+model.add('linear', size=(84, 10), activation='Softmax')
+model.add(optimizer='SGD')
+model.save_fold = 'new_mn_ckpt'
+model.train(lr=0.01, epochs=200, checkpoint="new_mn_ckpt/basenn.pth") # 继续训练
+如自己进行对图片数据处理后，使用load_dataset(x, y)载入数据，可使用如下代码：
+python
+model = nn('cls')
+model.load_dataset(x,y,classes=classes) # classes是类别列表（列表） //字典
+model.add('conv2d',...)
+model.train(lr=0.01,epochs=1)
+第二种：特征类型
+可直接指定csv格式的表格完成模型训练，参考代码如下：
+python
+model = nn('cls')
+train_path = '../../dataset/iris/iris_training.csv'
+model.load_tab_data(train_path, batch_size=120)
+model.add(layer='linear',size=(4, 10),activation='ReLU') # [120, 10]
+model.add(layer='linear',size=(10, 5), activation='ReLU') # [120, 5]
+model.add(layer='linear', size=(5, 3), activation='Softmax') # [120, 3]
+model.save_fold = './iris_ckpt'
+model.train(lr=0.01, epochs=500)
+对表格的要求：csv格式，纵轴为样本，横轴为特征，第一行为表头，最后一列为标签。
+当然您也可以自行编写代码来加载数据并进行预处理，然后将生成的输入特征 x
+和目标标签 y
+传递给模型。针对特征数据，使用BaseNN各模块的示例代码即可。
+python
+model = nn('cls')
+model.load_dataset(x,y)
+model.add('linear',...)
+model.save_fold = './iris_ckpt'
+model.train(lr=0.01,epochs=1)
+第三种：文本类型
+在做文本生成等NLP（自然语言处理）领域项目时，一般搭建RNN网络训练模型，训练数据是文本数据，参考代码如下：
+python
+model = nn('cls')
+model.load_dataset(x,y,word2idx=word2idx) # word2idx是词表（字典）
+model.add('lstm',size=(128,256),num_layers=2)
+model.train(lr=0.001,epochs=1)
+5. 模型推理
+可使用以下函数进行推理：
+python
+model = nn('cls') # 声明模型
+checkpoint = 'checkpoints/iris_ckpt/basenn.pth' # 现有模型路径
+result = model.inference(data=test_x, checkpoint=checkpoint) # 直接推理
+model.print_result(result) # 输出字典格式结果
+checkpoint为已有模型路径，即使用现有的模型进行推理。
+直接推理的输出结果数据类型为NumPy的二维数组，表示各个样本的各个特征的置信度。
+输出字典格式结果的数据类型为字典，格式为{样本编号：{预测值：x，置信度：y}}。print_result()函数调用即输出，但也有返回值。
+参数data为待推理的测试数据，该参数必须传入值，可以传入NumPy数组或文件路径或者dataloader类型的数据，也可以传入list（最终还是会转成numpy数组）。除了NumPy数组格式和list数组格式的特征数据，以及传入dataloader类型的数据进行批量的模型推理外，还可以直接传入文件路径进行模型推理，下面我们分文件类型说明。
+注：推理时传入的数据要和模型训练时使用的训练集的数据保持一致。
+推理篇拓展------直接传文件路径完成推理
+针对单个图片文件的推理：
+python
+model = nn('cls')
+test_x = "mnist/val_set/7/83.jpg"
+result = model.inference(data=test_x, checkpoint="mn_ckpt/basenn.pth") # 推理某张图片
+model.print_result()
+针对图片文件夹的推理：
+python
+model = nn('cls')
+test_x = "mnist/val_set/7"
+result = model.inference(data=test_x, checkpoint="mn_ckpt/basenn.pth") # 推理整个测试集
+model.print_result()
+针对特征表格文件的推理：
+简便方法：
+python
+model = nn('cls')
+test_path = 'data/iris_test.csv'
+res = model.inference(test_path, checkpoint="iris_ckpt/basenn.pth",label=True)
+model.print_result(res)
+使用此方法，对表格文件有严格要求：csv格式，纵轴为样本，横轴为特征，第一行为表头，最后一列为标签
+label=True：csv文件中含标签列，比如iris_test.csv；False为没有标签，如果指定的csv最后一列不是标签，则使用False。
+常规方法：先读取文件的特征列。
+python
+import numpy as np
+model = nn('cls')
+test_path = 'data/iris_test.csv'
+test_x = np.loadtxt(test_path, dtype=float, delimiter=',',skiprows=1,usecols=range(0,4)) 
+res = model.inference(test_x, checkpoint="checkpoints/iris_ckpt/basenn.pth")
+model.print_result(res)
+针对文本数据的推理：
+python
+model = nn('cls')
+data = '长'
+checkpoint = 'xxx.pth'
+result = model.inference(data=data, checkpoint=checkpoint)
+index = np.argmax(result[0]) # 取得概率最大的字的索引，当然也可以取别的，自行选择即可
+word = model.idx2word[index] # 根据词表获得对应的字
+result为列表包含两个变量：[output, hidden]。
+output为NumPy数组，里面是一系列概率值，对应每个字的概率。
+hidden为高维向量，存储上下文信息，代表"记忆"，所以生成单个字可以不传入hidden，但写诗需要循环传入之前输出的hidden。
+6. 模型文件格式转换
+使用BaseNN训练好的模型权重会以.pth格式的文件保存到本地，但是以.pth格式保存文件不利于模型的部署以及推理，因此我们希望将.pth文件转换成.onnx格式的文件，这样就可以将模型快速部署并进行推理啦。比如，可以使用XEduHub工具，利用转换好的onnx文件进行模型推理。
+模型格式转换代码如下：
+python
+from BaseNN import nn
+model = nn()
+model.convert(checkpoint="basenn_cd.pth",out_file="basenn_cd.onnx")
+参数说明：
+checkpoint: 指定要转换的pth模型文件路径。
+out_file: 指定转换出的onnx模型文件路径。
+opset_version：指定转换出的onnx模型算子的版本，默认为10，一般情况下不需要进行设置，除非出现了算子版本不符而导致的报错。【可选参数】
+ir_version：指定中间表示（Intermediate Representation, 简称 IR）规范的版本，一个整数（int）类型的参数。当前可选范围为1～12，默认为6。在计算机编程中，中间表示是一种数据结构或代码，它介于原始代码和机器码之间。它通常用于编译器或类似工具中，作为转换和优化代码的一个步骤。指定中间表示的版本，可方便根据不同的需求和优化目标选择最合适的 IR 规范。【可选参数】
+注意！：在转换为onnx文件后会将模型的元信息，如数据类型、输入尺寸等也写入模型文件，而之前版本的BaseNN训练得到的模型文件不含有这些信息，因此如果想要将之前的BaseNN训练得到的文件进行转换，需要基于原先的模型文件使用最新的BaseNN版本再进行一轮训练！
+模型转换后生成一个ONNX模型和示例代码，示例代码的使用详见后文。
+高级功能
+1.提取CNN特征
+图像特征提取是计算机视觉中的重要研究领域之一，是计算机视觉中的一个关键步骤，它涉及将图像转换成一组有意义的特征向量，以便于后续的图像分析和识别任务。CNN（卷积神经网络）特征提取方法是一种基于深度学习的特征提取方法，通过卷积层、池化层等多个网络层的处理，可以提取出具有高层次抽象能力的特征表示，被广泛应用于图像分类、目标检测等领域。
+BaseNN中提供了一个CNN特征提取工具，可使用BaseNN的model.extract_feature()函数通过指定预训练模型来提取图像特征，使用ResNet预训练模型可将一张图像提取为1000维的特征（该预训练模型是在imagenet上训练的千分类模型，所以输出特征的维度是1000维），输出一个1行1000列的数组。
+```python
+声明模型
+model = nn('cls')
+读取图像文件
+img = cv2.imread('small/0/5818.png')
+指定resnet18提取图像特征
+feature = model.extract_feature(img, pretrain='resnet18')
+```
+第一次下载预训练模型有点慢需要耐心等待，再次运行则无需下载。
+2.网络中特征可视化
+BaseNN内置visual_feature函数可呈现数据在网络中传递的过程。特征可视化可以帮助我们更好地理解模型在处理数据时的内部工作原理，并通过这种方式来进一步提高模型的性能和效果。
+如输入数据为图片，指定图片和已经训练好的模型，可生成一张展示逐层网络特征传递的图片。
+python
+import cv2
+from BaseNN import nn
+model = nn('cls')
+model.load('mn_ckpt/basenn.pth')          # 保存的已训练模型载入
+path = 'test_IMG/single_data.jpg'
+img = cv2.imread(path,flags = 0)          # 图片数据读取
+model.visual_feature(img,in1img = True)   # 特征的可视化
+如输入数据为一维数据，指定数据和已经训练好的模型，可生成一个txt文件展示经过各层后的输出。
+python
+import NumPy as np
+from BaseNN import nn
+model = nn('cls')
+model.load('checkpoints/iris_ckpt/basenn.pth')          # 保存的已训练模型载入
+data = np.array(test_x[0]) # 指定数据,如测试数据的一行
+model.visual_feature(data)   # 特征的可视化
+3.查看模型结构
+python
+model.print_model()
+无参数。
+4.自定义随机数种子
+默认初始化是随机的，因此每次模型训练效果可能存在差异。可以使用set_seed()函数设定随机数种子，使得训练结果可被其他人复现。一旦指定，则每次训练结果一致。使用方法如下：
+python
+model = nn()
+model.set_seed(1235)
+model.add(...)
+...
+model.train(...)
+注：设定随机数种子set_seed()应当在搭建网络add()之前。在搭建机器学习模型之前，通常建议设置随机数种子。这样做可以使得在每次运行时，生成的随机数序列都是相同的，从而使得模型的可重复性更高。这对于模型调试、验证模型效果、比较不同模型效果等方面都非常有帮助。随机数种子的选择通常应该是随意的，只要您能记住或记录下来使用的种子即可。并且，种子的选择并不会影响模型的效果，只会影响结果的可重复性。
+5.自定义损失函数
+损失函数（或称目标函数、优化评分函数）是编译模型时所需的参数之一。在机器学习和深度学习中，模型的训练通常涉及到一个优化过程，即通过不断调整模型的参数，使得模型在训练数据上的预测结果与实际结果的差距最小化。这个差距通常使用一个称为"损失函数"的指标来衡量。损失函数通常是一个关于模型参数的函数，用于度量模型预测结果与实际结果之间的差异。在模型训练过程中，模型会根据损失函数的值来调整自己的参数，以减小损失函数的值。
+默认的损失函数是交叉熵损失函数，允许选择不同的损失函数，支持的损失函数见附录。自选损失函数方法如下：
+python
+model.train(...,loss="MSELoss")
+6.自定义评价指标
+评价指标用于评估当前训练模型的性能。当模型编译后，评价指标应该作为
+metrics的参数来输入。默认无，需要自行设置评价指标。支持的评价指标：acc（准确率），mae（平均绝对误差），mse（均方误差）。
+自选评价指标方法如下：
+python
+model.train(...,metrics="acc")
+当然，在train函数中设置的metrics的参数仅是模型在训练集上的评价结果。如需评估模型在验证集上的效果，还需配合模型推理完成。
+由此拓展-自定义评价函数和训练策略
+一般可以自定义一个分类正确率计算函数来评估模型效果，主要可以通过计算验证集上的分类准确率完成。
+```python
+定义一个计算分类正确率的函数
+def cal_accuracy(y, pred_y):
+    res = pred_y.argmax(axis=1)
+    tp = np.array(y)==np.array(res)
+    acc = np.sum(tp)/ y.shape[0]
+    return acc
+计算分类正确率
+print("分类正确率为：",cal_accuracy(y_val, result))  # y_val指代验证集的真实值，result指代验证集的推理结果
+```
+由于model.train在完全训练结束之后，才能进行其他操作，如何判断提前终止训练，或者使用自定义的验证策略来验证模型效果呢？可以用循环来实现。
+参考代码如下：
+python
+for i in range(5):
+    model.train(lr=0.01, epochs=5, metrics='acc')
+    result = model.inference(x_val, checkpoint=checkpoint)
+    acc = cal_accuracy(y_val, result) # 调用自定义的验证计算函数
+    print('验证集准确率: {:.2f}%'.format(100.0 * acc))
+    if acc > 0.7: # 如果准确率大于70%，提前结束训练
+        break
+7.探秘权重文件
+BaseNN 0.3.0以上，支持查看pth文件中的权重信息。
+首先将pth文件读入一个变量state_dict:
+python
+import torch 
+ckpt = torch.load('iris_ckpt/basenn.pth')
+state_dict = ckpt['state_dict'].state_dict()
+1）查看模型里面有哪些层，及各个层的名称
+python
+for i in state_dict:
+    print('这一层的名字是:',i)
+输出结果：
+layer_name: linear1.weight
+layer_name: linear1.bias
+layer_name: linear2.weight
+layer_name: linear2.bias
+layer_name: linear3.weight
+layer_name: linear3.bias
+可以看到，权重主要包括两种参数，一种是weight，一种是bias。其中weight，指“重”，特征的重要程度，bias值“偏”，偏离原点的程度。回想一下我们初中学习的一次函数 y=w*x+b 就是这样的含义。上图中，每一层都分别有weight和bias构成。
+2）查看模型里面上述层的形状（每层的大小）
+python
+for i in state_dict:
+    print('层：', i ," 的形状是", state_dict[i].shape)
+输出结果：
+layer_name: linear1.weight  shape: torch.Size([10, 4])
+layer_name: linear1.bias  shape: torch.Size([10])
+layer_name: linear2.weight  shape: torch.Size([5, 10])
+layer_name: linear2.bias  shape: torch.Size([5])
+layer_name: linear3.weight  shape: torch.Size([3, 5])
+layer_name: linear3.bias  shape: torch.Size([3])
+通过这一功能，可以简单计算一个模型的参数量有多少。
+例如在这个例子中，我们可以计算，参数量一共是：10*4+10+5*10+5+3*5+3 个参数。但是通常bias可以忽略不计。至于为什么有10*4 ，这是因为第一个全连接层用的是size=(4, 10)，这表示，4个神经元的输入层，与10个神经元的隐藏层相连接。这种情况下，4个神经元中的任意一个神经元，都与10个下一层神经元相连接，显然，这里的参数量为10+10+10+10=10*4。
+3）查看模型里各层参数的值
+python
+for i in state_dict:
+    print(ckpt['state_dict'].state_dict()[i])
+输出结果：
+layer: linear1.weight shape: torch.Size([10, 4])
+tensor([[-0.1671, -0.2946, -0.1523,  0.2340],
+        [-0.2319, -0.2094,  0.8307,  0.7168],
+        [-0.4024,  0.0528, -0.4063,  0.3279],
+        [ 0.5091, -0.0214,  0.9994,  0.5224],
+        [ 0.6709,  1.0019,  0.1012, -0.8173],
+        [ 0.7910,  0.6090, -0.6661, -0.8460],
+        [-0.3291,  0.1794,  0.3013, -0.5664],
+        [-0.0976, -0.1166, -0.1597, -0.1705],
+        [-0.2752,  0.3727, -0.4080, -0.4774],
+        [-0.3167, -0.1678,  1.0979,  0.7183]])
+layer: linear1.bias shape: torch.Size([10])
+tensor([ 0.0276,  0.0367, -0.1092,  0.5315,  0.7263,  0.3025, -0.1470,  0.0737,
+        -0.1824,  0.0029])
+layer: linear2.weight shape: torch.Size([5, 10])
+tensor([[-0.1355,  0.7558,  0.0546,  0.1230, -0.3620, -0.7619, -0.3141, -0.0608,
+         -0.0821,  0.6960],
+        [-0.2451, -0.8411, -0.1880,  0.2396,  0.4853,  1.0186, -0.0673, -0.2480,
+          0.2201, -0.7702],
+        [-0.0184, -0.1989, -0.2507, -0.0921,  0.3093,  0.7214, -0.0233,  0.2101,
+         -0.2183, -0.2256],
+        [ 0.1090, -0.1517,  0.1152, -0.2598, -0.0861,  0.1829, -0.3004, -0.0835,
+          0.0937, -0.1331],
+        [ 0.1686,  0.8030, -0.2627,  0.5540, -0.0460, -0.4488, -0.1358, -0.2360,
+          0.0522,  0.7765]])
+layer: linear2.bias shape: torch.Size([5])
+tensor([-0.8387,  0.7115,  0.5185, -0.1147,  0.0033])
+layer: linear3.weight shape: torch.Size([3, 5])
+tensor([[-0.7702,  0.6576,  0.5163, -0.0201, -1.1092],
+        [-1.1128,  0.2404,  0.2973,  0.3267,  0.1670],
+        [ 0.5992, -1.0186, -0.7638,  0.3445,  0.5820]])
+layer: linear3.bias shape: torch.Size([3])
+tensor([ 0.6430,  0.3829, -0.1744])
+我们知道了参数的值之后，可以尝试计算，当一条新数据输入网络后，模型会经历怎样的计算，请你试一试搭建一个简单的神经网络，试一试这个计算过程，你能不能手动实现呢？
+
+BaseNN项目案例集
+搭建卷积神经网络实现手写体图像分类
+本案例来源于《人工智能初步》人教地图72页。
+项目地址：https://www.openinnolab.org.cn/pjlab/project?id=641d17e67c99492cf16d706f&sc=635638d69ed68060c638f979#public
+实现效果：
+实现步骤：
+1）网络搭建和模型训练
+导入库：
+```python
+导入BaseNN库
+from BaseNN import nn
+```
+读取数据：
+```python
+模型载入数据
+model.load_img_data("/data/MELLBZ/mnist/training_set",color="grayscale",batch_size=10000)
+```
+搭建网络开始训练：
+```python
+声明模型
+model = nn('cls')
+自己搭建网络（我们搭建的是LeNet网络，可改变参数搭建自己的网络）
+model.add('Conv2D', size=(1, 6),kernel_size=(5, 5), activation='ReLU') 
+model.add('MaxPool', kernel_size=(2,2)) 
+model.add('Conv2D', size=(6, 16), kernel_size=(5, 5), activation='ReLU')
+model.add('MaxPool', kernel_size=(2,2)) 
+model.add('Linear', size=(256, 120), activation='ReLU') 
+model.add('Linear', size=(120, 84), activation='ReLU') 
+model.add('Linear', size=(84, 10), activation='Softmax') 
+模型超参数设置和网络训练
+model.optimizer = 'Adam' #'SGD' , 'Adam' , 'Adagrad' , 'ASGD' 内置不同优化器
+learn_rate = 0.001 #学习率
+max_epoch = 100 # 最大迭代次数
+model.save_fold = 'mn_ckpt' # 模型保存路径
+model.train(lr=learn_rate, epochs=max_epoch) # 直接训练
+```
+2）模型推理
+读取某张图片进行推理：
+```python
+单张图片的推理
+path = 'test_IMG/single_data.jpg'
+checkpoint = 'mn_ckpt/basenn.pth' # 现有模型路径
+y_pred = model.inference(data=path, checkpoint=checkpoint)
+model.print_result()
+输出结果
+res = y_pred.argmax(axis=1)
+print('此手写体的数字是：',res[0])
+```
+定义一个准确率计算函数，读取测试集所有图片进行推理并计算准确率。
+```python
+计算准确率函数
+def cal_accuracy(y, pred_y):
+    res = pred_y.argmax(axis=1)
+    tp = np.array(y)==np.array(res)
+    acc = np.sum(tp)/ y.shape[0]
+    return acc
+import torch
+from BaseNN import nn
+import numpy as np
+推理验证集
+m = nn()
+val_data = m.load_img_data('/data/MELLBZ/mnist/val_set',color="grayscale",batch_size=20000)
+checkpoint_path = 'mn_ckpt/basenn.pth' # 载入模型
+for x, y in val_data:
+    res = m.inference(x, checkpoint=checkpoint_path)
+    acc=cal_accuracy(y,res)
+    print('验证集准确率: {:.2f}%'.format(100.0 * acc))
+```
+一维卷积神经网络文本情感识别
+本案例来源于《人工智能初步》人教地图版72-76页。
+项目地址：https://www.openinnolab.org.cn/pjlab/project?id=638d8bd8be5e9c6ce28ad033&sc=635638d69ed68060c638f979#public
+项目核心功能：
+完成了搭建一维卷积神经网络实现文本感情识别分类，代码使用BaseNN库实现，同时结合了Embedding层对单词文本进行向量化。
+数据集是imdb电影评论和情感分类数据集，来自斯坦福AI实验室平台，http://ai.stanford.edu/~amaas/data/sentiment/。
+注意：新版本BaseNN（>==0.1.6）已不支持项目中部分代码的写法或，如添加Embedding层。可模仿下列代码进行
+实现步骤：
+1）网络搭建和模型训练
+导入库：
+```python
+导入BaseNN库、numpy库用于数据处理
+from BaseNN import nn
+import numpy as np
+```
+读取数据并载入：
+```python
+读取训练集数据
+train_data = np.loadtxt('imdb/train_data.csv', delimiter=",")
+train_label = np.loadtxt('imdb/train_label.csv', delimiter=",")
+模型载入数据
+model.load_dataset(train_data, train_label) 
+```
+搭建模型并开始训练：
+```python
+声明模型
+model = nn() # 有Embedding层
+搭建模型
+model.add('Embedding', vocab_size = 10000, embedding_dim = 32)  # Embedding层，对实现文本任务十分重要，将one-hot编码转化为相关向量 输入大小（batch_size,512）输出大小（batch_size,32,510）
+model.add('conv1d', size=(32, 32),kernel_size=3, activation='relu') #一维卷积 输入大小（batch_size,32,510） 输出大小（batch_size,32,508）
+model.add('conv1d', size=(32, 64),kernel_size=3, activation='relu') #一维卷积 输入大小（batch_size,32,508） 输出大小（batch_size,64,506）
+model.add('mean') #全局池化 输入大小（batch_size,64,508）输出大小（batch_size,64）
+model.add('linear', size=(64, 128), activation='relu') #全连接层 输入大小（batch_size,64）输出大小（batch_size,128）
+model.add('linear', size=(128, 2), activation='softmax') #全连接层 输入大小（batch_size,128）输出大小（batch_size,2）
+模型超参数设置和网络训练（训练时间较长, 可调整最大迭代次数减少训练时间）
+model.add(optimizer='Adam') #'SGD' , 'Adam' , 'Adagrad' , 'ASGD' 内置不同优化器
+learn_rate = 0.001 #学习率
+max_epoch = 150 # 最大迭代次数
+model.save_fold = 'mn_ckpt' # 模型保存路径
+checkpoint = 'mn_ckpt/cov_basenn.pkl' 
+model.train(lr=learn_rate, epochs=max_epoch) # 直接训练
+```
+2）模型推理
+读取测试集所有数据进行推理：
+```python
+读取测试集数据
+test_data = np.loadtxt('imdb/test_data.csv', delimiter=",")
+test_label = np.loadtxt('imdb/test_label.csv', delimiter=",")
+y_pred = model.inference(data=train_data)
+```
+用单个数据进行推理：
+```python
+用测试集单个数据查看模型效果
+single_data = np.loadtxt('imdb/test_data.csv', delimiter=",", max_rows = 1)
+single_label = np.loadtxt('imdb/test_label.csv', delimiter=",", max_rows = 1)
+label = ['差评','好评']
+single_data = single_data.reshape(1,512) 
+res = model.inference(data=single_data)
+res = res.argmax(axis=1)
+print('评论对电影的评价是：', label[res[0]]) # 该评论文本数据可见single_data.txt
+```
+用神经网络计算前方障碍物方向
+本案例是一个跨学科项目，用神经网络来拟合三角函数。案例发表于2023年的《中国信息技术教育》杂志。
+项目地址：https://www.openinnolab.org.cn/pjlab/project?id=6444992a06618727bed5a67c&backpath=/pjlab/projects/list#public
+项目核心功能：
+用两个超声波传感器测量前方的障碍物距离，然后计算出障碍物所在的方向。这是一个跨学科项目，用神经网络来拟合三角函数。训练一个可以通过距离计算出坐标的神经网络模型，掌握使用BaseNN库搭建神经网络完成“回归”任务的流程。
+实现步骤：
+1）数据采集
+我们有多种方式来采集数据。第一种是最真实的，即在障碍物和中点之间拉一条 线，然后读取两个超声波传感器的数据，同时测量角度并记录。另一种是拉三条线， 因为超声波传感器的数值和真实长度误差是很小的。 当然，因为这一角度是可以用三角函数计算的，那么最方面的数据采集方式莫过于是用Python写一段代码，然后将一组数据输出到CSV 文件中。或者使用Excel的公式来计算，再导出关键数据，如图所示。
+2）数据预处理
+首先读取数据，0-2为输入，3-9是各种输出的数据。
+python
+import numpy as np
+train_path = './data/train-full.csv'
+x = np.loadtxt(train_path, dtype=float, delimiter=',',skiprows=1,usecols=[0,1,2]) # 读取前3列
+y = np.loadtxt(train_path, dtype=float, delimiter=',',skiprows=1,usecols=[8]) # 读取9列
+将y映射到0-1之间。
+python
+from sklearn.preprocessing import MinMaxScaler
+y = y.reshape(-1, 1)
+scaler = MinMaxScaler()
+scaler.fit(y)
+y = scaler.transform(y)  # 0~1
+生成新的数据集。
+python
+norm_data = np.concatenate((x,y),axis=1)
+np.savetxt('./data/train_norm.csv',norm_data,delimiter=',')
+3）网络搭建和模型训练
+搭建一个3层的神经网络并开始训练，输入维度是3（3列数据），最后输出维度是1（1列数据），激活函数使用ReLU。
+```python
+from BaseNN import nn
+model = nn('reg') #声明模型 
+model.load_tab_data('./data/train_norm.csv',batch_size=1024) # 载入数据
+model.add('Linear', size=(3, 60),activation='ReLU')
+model.add('Linear', size=(60, 6), activation='ReLU') 
+model.add('Linear', size=(6, 1))
+model.add(optimizer='Adam')
+设置模型保存的路径
+model.save_fold = 'checkpoints/ckpt'
+模型训练
+model.train(lr=0.001, epochs=300,loss='MSELoss') 
+```
+4）模型推理
+读取测试数据进行模型推理，测试数据同样来自随机数。
+```python
+测试数据
+test_path = './data/test-full.csv'
+test_x = np.loadtxt(test_path, dtype=float, delimiter=',',skiprows=1,usecols=[0,1,2]) # 读取前3列
+test_y = np.loadtxt(test_path, dtype=float, delimiter=',',skiprows=1,usecols=[8]) # 读取第9列
+y_pred = model.inference(test_x,checkpoint = 'checkpoints/ckpt/basenn.pth')  # 对该数据进行预测
+```
+用BaseNN搭建神经网络拟合多项式
+本案例实现用BaseNN搭建神经网络拟合多项式，使用神经网络来拟合简单的多项式函数是学习和理解神经网络工作原理的一个很好的入门方式。这个过程涉及到数据的处理、模型的构建、损失函数的应用、优化算法的使用等，这些都是深度学习的基本组成部分。
+项目地址：https://openinnolab.org.cn/pjlab/project?id=6576e6928474f83270a08310&sc=635638d69ed68060c638f979#public
+项目核心功能：
+用自动生成的多项式数据训练一个可以拟合多项式的神经网络模型，掌握使用BaseNN库搭建神经网络完成“回归”任务的流程。
+实现步骤：
+1）数据准备
+可以定义一个多项式函数（以五项式为例），生成数据。
+如下代码还向五次多项式函数生成的数据点添加高斯噪声，可以模拟现实世界中可能遇到的数据不准确性。这种方法特别适合于准备数据，用于训练机器学习模型，以确保它们在面对实际、可能带有噪声的数据时仍能有效工作。
+```python
+import numpy as np
+定义五项式函数
+def quintic_polynomial(x, a=1, b=0, c=0, d=0, e=0, f=0):
+    return a * x5 + b * x4 + c * x3 + d * x2 + e * x + f
+生成数据点
+x = np.linspace(-10000, 10000, 10000, dtype=np.float32)  # 生成 -10000 到 10000 之间的 10000 个点，确保生成的数据是 float32 类型
+a, b, c, d, e, f = 1, 13, 35, -85, -216, 252 # 设置系数
+y = quintic_polynomial(x, a, b, c, d, e, f)
+noise = np.random.normal(0, 2, y.shape).astype(np.float32)  # 将噪声转换为 float32 类型
+y_noisy = y + noise
+调整数据形状以适应神经网络
+x = x.reshape(-1, 1)
+y_noisy = y_noisy.reshape(-1, 1)
+```
+将生成的数据保存在一个csv中，且给它加入表头，完成数据集制作。
+```python
+data = np.concatenate((x,y_noisy),axis=1)
+定义标题行，列之间用逗号分隔
+header = 'feature,pred'
+np.savetxt('data/data.csv',data,delimiter=',', header=header, comments='')
+```
+2）数据预处理
+为了加速收敛，我们参照已有经验将x和y映射到0-1之间。
+python
+from sklearn.preprocessing import MinMaxScaler
+scaler = MinMaxScaler() # 创建MinMaxScaler实例
+y_noisy = scaler.fit_transform(y_noisy) # 将y_noisy拟合并转换到0-1范围
+scaler2 = MinMaxScaler() # 创建MinMaxScaler实例
+x = scaler2.fit_transform(x) # 将x拟合并转换到0-1范围
+保存为新的csv。
+```python
+norm_data = np.concatenate((x,y_noisy),axis=1)
+定义标题行，列之间用逗号分隔
+header = 'feature,pred'
+np.savetxt('data/norm_data.csv',norm_data,delimiter=',', header=header, comments='')
+```
+训练模型前，一般建议划分数据集为训练集、验证集，我们可以借助BaseDT库完成数据集按照一定比例的随机划分。
+python
+from BaseDT.dataset import split_tab_dataset
+path = "data/norm_data.csv"
+tx,ty,val_x,val_y = split_tab_dataset(path,data_column=0,label_column=1)
+3）网络搭建和模型训练
+搭建一个3层的神经网络并开始训练，输入维度是1（1列数据），最后输出维度是1（1列数据），激活函数使用ReLU。
+```python
+导入库
+from BaseNN import nn
+声明模型，选择回归任务
+model = nn('reg') 
+model.load_tab_data('data/norm_data_train.csv',batch_size=1024) # 载入数据
+model.add('Linear', size=(1, 60),activation='ReLU')
+model.add('Linear', size=(60, 6), activation='ReLU') 
+model.add('Linear', size=(6, 1))
+model.add(optimizer='Adam')
+设置模型保存的路径
+model.save_fold = 'checkpoints/ckpt'
+model.train(lr=0.01, epochs=500,loss='MSELoss') # 训练
+```
+4）模型推理
+读取验证集数据进行模型推理。
+```python
+import numpy as np
+读取验证集
+val_path = 'data/norm_data_val.csv'
+val_x = np.loadtxt(val_path, dtype=float, delimiter=',',skiprows=1,usecols=0) # 读取特征列
+val_y = np.loadtxt(val_path, dtype=float, delimiter=',',skiprows=1,usecols=1) # 读取预测值列
+导入库
+from BaseNN import nn
+声明模型
+model = nn('reg') 
+y_pred = model.inference(val_x,checkpoint = 'checkpoints/ckpt/basenn.pth')  # 对该数据进行预测
+```
+借助matplotlib绘图将预测值 (y_pred) 和实际值 (val_y) 与 val_x 的值进行对比，效果是相当不错的。
+先将x和y从标准化的状态恢复到它们原始的比例和值，使用和预处理时一样的方式，scaler和scaler2均调用数据预处理时的。
+python
+y_pred = scaler.inverse_transform(y_pred)
+val_y = scaler.inverse_transform(val_y.reshape(-1, 1))
+val_x = scaler2.inverse_transform(val_x.reshape(-1, 1))
+```python
+import matplotlib.pyplot as plt
+import operator
+将val_x,val_y,y_pred 根据val_x的顺序排序
+L = sorted(zip(val_x,val_y,y_pred), key=operator.itemgetter(0))
+val_x, val_y,y_pred = zip(*L)
+plt.plot(val_x,y_pred, label='pred')
+plt.plot(val_x,val_y, label='val')
+plt.show()
+```
+用BaseNN搭建ResNet18网络实现MNIST手写体数字分类
+本项目展示用BaseNN搭建ResNet18网络，以MNIST手写体数字分类为任务，使用BaseNN完成ResNet18网络搭建并基于手写体数据集训练一个手写数字分类模型，通过模型测试效果不错。希望借此项目您能掌握使用BaseNN搭建ResNet18网络的方法，能举一反三搭建ResNet34、ResNet580等，也能更换数据集训练其他模型。
+项目地址：https://openinnolab.org.cn/pjlab/project?id=659ba9b3a731f07a4896af46&backpath=/pjedu/userprofile?slideKey=project#public
+项目核心功能：
+BaseNN是XEdu系列工具的重要组成部分，延续了MMEdu极简的训练流程和风格，聚焦于基础原理的探究和模型的快速应用。BaseNN可以自由地构建神经网路，调整神经元的个数、层数、激活方式等，学生可以轻松探究神经网络原理和模型训练之中的奥秘。使用BaseNN可以轻易地创建深度学习模型。不同类型的神经网络适用于不同类型的问题，比如CNN通常用于处理图像问题，RNN通常用于处理序列问题，全连接神经网络可以应用于各种问题。同时，使用BaseNN也能完成一些相对复杂的神经网络的搭建，如ResNet，同样也是支持的，首先需在卷积层新增两个参数的设置，分别是步长stride和填充padding，同时增加残差模块的设置。
+实现步骤：
+1）导入库
+```python
+导入库
+from BaseNN import nn
+```
+2）搭建模型
+```python
+声明模型
+model = nn('cls')
+搭建ResNet18网络(参照论文完成)，要求输入数据的尺寸为（224,224）
+model.add('Conv2D', size=(3, 64), kernel_size=(7, 7),stride=2,padding=3, activation='ReLU') #(32,64,112,112)
+model.add('BatchNorm2d', size=64) # (32,64,112,112)
+model.add('MaxPool', kernel_size=(3,3),stride=2,padding=1) # (32,64,56,56)
+model.add('Res_Block', size=(64, 64), num_blocks=2,stride=1) # (32,64,56,56)
+model.add('Res_Block', size=(64, 128), num_blocks=2,stride=2) # (32,128,28,28)
+model.add('Res_Block', size=(128, 256), num_blocks=2,stride=2) # (32,256,14,14)
+model.add('Res_Block', size=(256, 512), num_blocks=2,stride=2) # (32,512,7,7)
+model.add('AvgPool', kernel_size=(7,7)) # (32,512)
+model.add('Linear', size=(512, 10), activation='Softmax') # (32,10)
+```
+3）载入数据
+载入前需对数据做预处理，载入图片数据前如需对图像数据集进行预处理，例如做尺寸调整，可先使用调用已经内置的torchvision对图片数据集进行预处理再载入模型进行训练。此处我们需将图片做尺寸调整（调整为224,224）
+参考代码如下，注意涉及数万张图片，需等待几分钟。
+```python
+载入数据，并对数据集做尺寸调整
+model.load_img_data('/data/MELLBZ/mnist/training_set',transform={"Resize":(224,224)},num_workers=1)
+```
+4）设置超参数并训练模型
+```python
+model.add(optimizer='SGD')
+model.save_fold = 'new_mn_ckpt'
+model.train(lr=0.01, epochs=1) # 直接训练
+```
+可以发现虽然训练很慢，但是可以发现仅需1轮Accuracy便提升显著，最后直接到1（即100%准确率）。
+主要原因是手写数字识别通常是深度学习中的一个相对简单的任务，尤其是对于像ResNet18这样的先进模型来说。因此，即使是少量的训练，模型也能迅速学习到有效的特征来区分不同的数字。且ResNet18是一个相对复杂的网络，拥有较强的特征提取能力。对于简单的数据集来说，它可能会很快学会区分各类别。
+5）模型测试
+可指定新的图片进行模型测试，注意需先将图片进行尺寸调整（训练时也做了）。
+```python
+import cv2
+指定一张图片
+path =  'test_IMG/single_data.jpg'
+读取图片
+img = cv2.imread(path)
+对图片进行尺寸调整
+img = cv2.resize(img,(224,224))
+指定模型
+checkpoint = 'new_mn_ckpt/basenn.pth' 
+模型推理
+y_pred = model.inference(data=path, checkpoint=checkpoint)
+model.print_result()
+输出结果
+res = y_pred.argmax(axis=1)
+print('此手写体的数字是：',res[0])xxxxxxxxxx import cv2# 指定一张图片path =  'test_IMG/single_data.jpg'# 读取图片img = cv2.imread(path)# 对图片进行尺寸调整img = cv2.resize(img,(224,224))# 指定模型checkpoint = 'new_mn_ckpt/basenn.pth' # 模型推理y_pred = model.inference(data=path, checkpoint=checkpoint)model.print_result()# 输出结果res = y_pred.argmax(axis=1)print('此手写体的数字是：',res[0])model.add(optimizer='SGD')model.save_fold = 'new_mn_ckpt'model.train(lr=0.01, epochs=1) # 直接训练
+```
+
+快速体验BaseNN，开始！
+简介
+BaseNN可以方便地逐层搭建神经网络，深入探究神经网络的原理。
+安装
+pip install basenn 或 pip install BaseNN
+更新库文件：pip install --upgrade BaseNN
+库文件源代码可以从PyPi下载，选择tar.gz格式下载，可用常见解压软件查看源码。
+体验
+运行demo/BaseNN_demo.py。
+可以在命令行输入BaseNN查看安装的路径，在安装路径内，可以查看提供的更多demo案例。同时可查看附录。
+如果在使用中出现类似报错：**AttributeError**: partially initialized module 'cv2' has no attribute 'gapi_wip_gst_GStreamerPipeline' (most likely due to a circular import) 
+可尝试通过运行pip install --upgrade opencv-python解决
+第一个BaseNN项目：搭建全连接神经网络训练鸢尾花分类模型
+第0步 引入包
+```python
+导入BaseNN库
+from BaseNN import nn
+```
+第1步 声明模型
+python
+model = nn('cls')
+第2步 载入数据
+直接使用load_tab_data方法载入鸢尾花数据集，该数据集包含150个数据样本，分为3类（Versicolour鸢尾花、Setosa鸢尾花和Virginica鸢尾花），每类50个数据，每个数据包含4个属性（花萼长度、花萼宽度、花瓣长度和花瓣宽度）。
+python
+train_path = 'data/iris_training.csv'
+model.load_tab_data(train_path, batch_size=120)
+第3步 搭建模型
+逐层添加，搭建起模型结构。注释标明了数据经过各层的维度变化。此处我们搭建的是一个输入维度为4，输出维度为3，隐藏层数量为2的全连接神经网络。输入维度4与鸢尾花数据集的特征维度对应，输出3与类别数量对应。
+python
+model.add(layer='linear',size=(4, 10),activation='relu') # [120, 10]
+model.add(layer='linear',size=(10, 5), activation='relu') # [120, 5]
+model.add(layer='linear', size=(5, 3), activation='softmax') # [120, 3]
+以上使用add()方法添加层，参数layer='linear'表示添加的层是线性层，size=(4,10)表示该层输入维度为4，输出维度为10，activation='relu'表示使用ReLU激活函数。
+第4步 模型训练
+设置好模型保存的路径，使用train开始训练，需要设置学习率lr和轮次epochs。
+```python
+设置模型保存的路径
+model.save_fold = 'checkpoints/iris_ckpt'
+模型训练
+model.train(lr=0.01, epochs=1000)
+```
+也可以使用继续训练：
+python
+checkpoint = 'checkpoints/basenn.pth'
+model.train(lr=0.01, epochs=1000, checkpoint=checkpoint)
+参数lr为学习率， epochs为训练轮数，checkpoint为现有模型路径，当使用checkpoint参数时，模型基于一个已有的模型继续训练，不使用checkpoint参数时，模型从零开始训练。
+第5步 模型测试
+可以直接用测试数据查看模型效果。
+读取数据。
+```python
+用测试数据查看模型效果
+model2 = nn('cls')
+test_path = 'data/iris_test.csv'
+test_x = np.loadtxt(test_path, dtype=float, delimiter=',',skiprows=1,usecols=range(0,4)) 
+获取最后一列的真实值
+test_y = np.loadtxt(test_path, dtype=float, delimiter=',',skiprows=1,usecols=4) 
+```
+模型推理并定义一个计算分类正确率的函数计算测试集上准确率。
+```python
+res = model2.inference(test_x, checkpoint="checkpoints/iris_ckpt/basenn.pth")
+model2.print_result(res)
+定义一个计算分类正确率的函数
+def cal_accuracy(y, pred_y):
+    res = pred_y.argmax(axis=1)
+    tp = np.array(y)==np.array(res)
+    acc = np.sum(tp)/ y.shape[0]
+    return acc
+计算分类正确率
+print("分类正确率为：",cal_accuracy(test_y, res))
+```
+用某组测试数据查看模型效果。
+```python
+用某组测试数据查看模型效果
+data = [test_x[0]]
+checkpoint = 'checkpoints/iris_ckpt/basenn.pth'
+res = model.inference(data=data, checkpoint=checkpoint)
+model.print_result(res) # 输出字典格式结果
+```
+参数data为待推理的测试数据数据，该参数必须传入值；
+checkpoint为已有模型路径，即使用现有的模型进行推理。
+快速体验
+体验BaseNN的最快速方式是通过OpenInnoLab平台。
+OpenInnoLab平台为上海人工智能实验室推出的青少年AI学习平台，满足青少年的AI学习和创作需求，支持在线编程。在“项目”中查看更多，搜索”BaseNN“，即可找到所有与BaseNN相关的体验项目。
+AI项目工坊：https://www.openinnolab.org.cn/pjlab/projects/list?backpath=/pjlab/ai/projects
+（用Chrome浏览器打开效果最佳）
+用BaseNN库搭建搭建鸢尾花分类模型项目地址：https://www.openinnolab.org.cn/pjlab/project?id=641bc2359c0eb14f22fdbbb1&sc=635638d69ed68060c638f979#public
+挑战使用BaseNN完成第一个回归项目：房价预测
+Boston Housing Dataset（波士顿房价数据集）是一个著名的数据集，经常用于机器学习和统计分析中。该数据集包含波士顿郊区房屋的各种信息，包括房价和与房价可能相关的各种属性。选择了四个与房价关系较大的特征：RM (每栋住宅的平均房间数)、LSTAT (人口中较低地位的百分比)、PTRATIO (师生比例)、NOX (一氧化氮浓度) 。进行数据预处理后生成了已提取出只有这四列特征和预测值且做了归一化处理的训练集（house_price_data_norm_train.csv）、验证集（house_price_data_norm_val.csv），搭建模型进行训练，数据预处理的代码可参考原项目。
+项目地址：
+https://www.openinnolab.org.cn/pjlab/project?id=656d99e87e42e551fa5f89bd&sc=62f34141bf4f550f3e926e0e#public
+（用Chrome浏览器打开效果最佳）
+第0步 引入包
+```python
+导入库
+from BaseNN import nn
+```
+第1步 声明模型
+```python
+声明模型，选择回归任务
+model = nn('reg') 
+```
+第2步 载入数据
+python
+model.load_tab_data('house_price_data_norm_train.csv',batch_size=1024) # 载入数据
+注：载入的数据集是做归一化之后并完成数据拆分的训练集。原项目中涉及数据归一化处理的步骤，使用sklearn.preprocessing的MinMaxScaler类，将每个特征缩放到给定的范围（在您的案例中是0到1），这是通过将最小值映射到0，最大值映射到1来实现的。对于中间的值，它们根据最大和最小值线性地缩放。
+第3步 搭建一个3层的全连接神经网络
+逐层添加，此处我们搭建的是一个输入维度为4，输出维度为1，隐藏层数量为2的全连接神经网络。输入维度4与数据集的特征维度对应，在任务中，由于我们只预测一个目标值房价，则输出维度设定为 1。
+python
+model.add('Linear', size=(4, 64),activation='ReLU')  
+model.add('Linear', size=(64, 4), activation='ReLU') 
+model.add('Linear', size=(4, 1))
+model.add(optimizer='Adam')
+第4步 模型训练
+```python
+设置模型保存的路径
+model.save_fold = 'checkpoints/ckpt'
+model.train(lr=0.008, epochs=5000,loss='MSELoss') # 训练
+```
+第5步 模型测试
+此步骤可以借助验证集完成。
+读取数据。
+```python
+import numpy as np
+读取验证集
+val_path = 'house_price_data_norm_val.csv'
+val_x = np.loadtxt(val_path, dtype=float, delimiter=',',skiprows=1,usecols=range(0,4)) # 读取特征列
+val_y = np.loadtxt(val_path, dtype=float, delimiter=',',skiprows=1,usecols=4) # 读取预测值列
+```
+对验证集完成模型推理。
+```python
+导入库
+from BaseNN import nn
+声明模型
+model = nn('reg') 
+y_pred = model.inference(val_x,checkpoint = 'checkpoints/ckpt2/basenn.pth')  # 对该数据进行预测
+```
+绘制曲线图。
+```python
+绘制真实数据和预测比较曲线
+import matplotlib.pyplot as plt
+plt.plot(val_y, label='val')
+plt.plot(y_pred, label='pred')
+plt.legend()
+plt.show()
+```
+对比输出，查看回归的效果，觉得效果还是很不错的。
+第6步 模型应用
+最后，可将模型应用于推理新数据。输入一组新的数据进行模型推理，需先完成数据处理，涉及的数据处理的代码会较长，此处是为了应用之前在训练集 (x) 上通过 fit_transform 方法学习到的scaler来转换 val_x。这确保了数据的一致性，因为对于模型来说，重要的是以相同的方式缩放训练数据和验证/测试数据。
+```python
+导入库
+from BaseNN import nn
+声明模型
+model = nn('reg') 
+输入一组数据
+data = [[4,5,20,2]]
+数据预处理
+from sklearn.preprocessing import MinMaxScaler
+import numpy as np
+train_path = 'data/house-price-data.csv'
+x = np.loadtxt(train_path, dtype=float, delimiter=',',skiprows=1,usecols=[4,5,10,12]) # 读取特征列
+scaler = MinMaxScaler() # 创建MinMaxScaler实例
+x = scaler.fit_transform(x) # 将训练集的特征x拟合并转换到0-1范围并获取scaler
+data = scaler.transform(data)
+模型推理
+y_pred = model.inference(data,checkpoint = 'checkpoints/ckpt2/basenn.pth')  # 对该数据进行预测
+输出预测
+print('我的房价预测结果是：',y_pred[0][0],'（单位：千美元）')
+```
+挑战使用BaseNN完成第一个自然语言处理项目：自动写诗机
+第0步 引入包
+```python
+导入BaseNN库、numpy库，numpy库用于数据处理
+from BaseNN import nn
+import numpy as np
+```
+第1步 声明模型
+python
+model = nn('cls')
+第2步 载入数据
+tangccc.npz是本项目的文本数据，源于互联网，包括57580首唐诗。npz是一种用于存储NumPy数组数据的文件格式。
+npz文件是一种方便的方式来保存和加载NumPy数组，通常用于在不同的Python程序之间或不同的计算环境中共享数据。
+在该项目中可以使用load_npz_data()方法直接读取npz格式的数据到模型中
+python
+model.load_npz_data('tangccc.npz')
+第3步 搭建LSTM模型
+搭建模型只需加入em_lstm层即可，其他层会自适应补充，其中num_layers参数为循环神经网络循环的次数。
+em_LSTM由包括embedding层，LSTM层和线性层组成，因为有embedding层的加入，所以em_LSTM可以专门处理文本数据。
+python
+model.add('em_lstm', size=(128,256),num_layers=2)
+第4步 模型训练
+为了节省训练时间，可以选择继续训练。
+python
+checkpoint = 'model.pth'
+model.save_fold = 'checkpoints'
+model.train(lr=0.005, epochs=1,batch_size=16, checkpoint=checkpoint)
+第5步 模型测试
+可以输入一个字输出下一个字。
+python
+input = '长'
+checkpoint = 'model.pth'
+result = model.inference(data=input,checkpoint=checkpoint) # output是多维向量，接下来转化为汉字
+output = result[0]
+print("output: ",output)
+index = np.argmax(output) # 找到概率最大的字的索引
+w = model.ix2word[index] # 根据索引从词表中找到字
+print("word:",w)
+拓展
+可以使用训练好的模型生成唐诗，生成藏头诗，做各种有意思的应用。
+更多内容详见用BaseNN实现自动写诗机项目，项目地址：https://www.openinnolab.org.cn/pjlab/project?id=641c00bbba932064ea962783&sc=635638d69ed68060c638f979#public
+更多案例详见下文。
+
