@@ -3,9 +3,9 @@ name = "AI-Tutor"
 version = "0.0.1"
 description = "aes-ai-tutor"
 authors = ["FrankGTY"]
-license = "MIT"
+license = "APACHE-2.0"
 readme = "README.md"
-repository = "http://gitlab.sh.99cloud.net/aigc/aes-ai-tutor.git"
+repository = "https://github.com/openhydra/aes-ai-tutor"
 package-mode = false
 
 [tool.poetry.dependencies]
