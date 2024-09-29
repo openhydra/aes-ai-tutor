@@ -18,7 +18,7 @@ spec:
       serviceAccountName: ai-education-studio-admin
       containers:
       - name: aes-ai-tutor-container
-        image:  registry.cn-shanghai.aliyuncs.com/openhydra/aes-ai-tutor:latest
+        image:  registry.cn-shanghai.aliyuncs.com/openhydra/aes-ai-tutor:release-2.0
         imagePullPolicy: IfNotPresent
         command: ["/bin/sh", "-c"]
         args: ["python cli.py init && python cli.py start --api"]
