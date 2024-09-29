@@ -4,48 +4,50 @@ on:
   push:
     branches:
       - main
-      - 'release/*'
+      - "release/*"
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - name: Set up docker buildx
-      id: buildx
-      uses: docker/setup-buildx-action@v2
-      with:
-        version: latest
+      - name: Set up docker buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          version: latest
 
-    - name: Docker login
-      env:
-        DOCKER_USERNAME: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
-        DOCKER_PASSWORD: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
-      run: |
-        echo "${DOCKER_PASSWORD}" | docker login --username "${DOCKER_USERNAME}" --password-stdin registry.cn-shanghai.aliyuncs.com
+      - name: Docker login
+        env:
+          DOCKER_USERNAME: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+        run: |
+          echo "${DOCKER_PASSWORD}" | docker login --username "${DOCKER_USERNAME}" --password-stdin registry.cn-shanghai.aliyuncs.com
 
-    - name: Extract branch name
-      id: extract_branch
-      run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+      - name: Extract branch name
+        id: extract_branch
+        run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
 
-    - name: Extract Tag
-      id: extract_tag
-      run: echo ::set-output name=version::${GITHUB_REF/refs\/tags\//}
+      - name: Extract Tag
+        id: extract_tag
+        run: echo ::set-output name=version::${GITHUB_REF/refs\/tags\//}
 
-    - name: Run buildx
-      run: |
-        tag=latest
-        if [[ "${{ steps.extract_branch.outputs.branch }}" == "main" ]];then 
-           tag=latest
-        elif [[ "${{ steps.extract_tag.outputs.version }}" == v* ]]; then
-          tag="${{ steps.extract_tag.outputs.version }}"
-        fi
+      - name: Run buildx
+        run: |
+          tag=latest
+          if [[ "${{ steps.extract_branch.outputs.branch }}" == "main" ]];then 
+             tag=latest
+          elif [[ "${{ steps.extract_tag.outputs.version }}" == v* ]]; then
+            tag="${{ steps.extract_tag.outputs.version }}"
+          else
+            tag="${{ steps.extract_branch.outputs.branch }}"
+          fi
 
-        echo extract_tag   ${{ steps.extract_tag.outputs.version }}
-        echo extract_branch  ${{ steps.extract_branch.outputs.branch }}
-        echo current tag is ${tag}
+          echo extract_tag   ${{ steps.extract_tag.outputs.version }}
+          echo extract_branch  ${{ steps.extract_branch.outputs.branch }}
+          echo current tag is ${tag}
 
-        docker buildx build --platform linux/amd64,linux/arm64 --push -f deploy/docker/Dockerfile -t registry.cn-shanghai.aliyuncs.com/openhydra/aes-ai-tutor:${tag} .
+          docker buildx build --platform linux/amd64,linux/arm64 --push -f deploy/docker/Dockerfile -t registry.cn-shanghai.aliyuncs.com/openhydra/aes-ai-tutor:${tag} .
