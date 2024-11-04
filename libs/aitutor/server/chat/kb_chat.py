@@ -101,9 +101,16 @@ async def chat_with_kb(
                     file_name="",
                     metadata={},
                 )
-                source_documents = format_reference(
-                    kb_name, docs, api_address(is_public=True)
-                )
+                source_documents = []
+                for inum, doc in enumerate(docs):
+                    filename = doc.metadata.get("source")
+                    text = f"""出处 [{inum + 1}] [{filename}] \n\n{doc.page_content}\n\n"""
+                    source_documents.append(text)
+
+                if len(source_documents) == 0:  # 没有找到相关文档
+                    source_documents.append(
+                        f"""<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>"""
+                    )
             elif mode == "temp_kb":
                 ok, msg = check_embed_model()
                 if not ok:
@@ -115,9 +122,16 @@ async def chat_with_kb(
                     top_k=top_k,
                     score_threshold=score_threshold,
                 )
-                source_documents = format_reference(
-                    kb_name, docs, api_address(is_public=True)
-                )
+                source_documents = []
+                for inum, doc in enumerate(docs):
+                    filename = doc.metadata.get("source")
+                    text = f"""出处 [{inum + 1}] [{filename}] \n\n{doc.page_content}\n\n"""
+                    source_documents.append(text)
+
+                if len(source_documents) == 0:  # 没有找到相关文档
+                    source_documents.append(
+                        f"""<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>"""
+                    )
             elif mode == "search_engine":
                 result = await run_in_threadpool(search_engine, query, top_k, kb_name)
                 docs = [x.dict() for x in result.get("docs", [])]
