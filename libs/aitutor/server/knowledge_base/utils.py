@@ -489,7 +489,7 @@ def format_reference(
         api_base_url = api_base_url.strip(" /")
         url = f"{api_base_url}/knowledge_base/download_doc?" + parameters
         page_content = doc.get("page_content")
-        ref = f"""出处 [{inum + 1}] [{filename}]({url}) \n\n{page_content}\n\n"""
+        ref = f"""出处 [{inum + 1}] [{filename}] \n\n{page_content}\n\n"""
         source_documents.append(ref)
 
     return source_documents
